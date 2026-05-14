@@ -1,23 +1,41 @@
 import streamlit as st
 import yfinance as yf
 import feedparser
+import re
 from datetime import datetime
 
-# 1. Config & Auto-refresh (2 sec)
-st.set_page_config(page_title="BEE-INVEST | ELITE", layout="wide")
+st.set_page_config(page_title="BEE-INVEST | QUANT UNIT", layout="wide")
 
 st.markdown("""
 <style>
     .stApp { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
-    .strat-card { background: #0d0d0d; border: 1px solid #ffb000; padding: 20px; border-radius: 4px; }
-    .news-container { background: #0d0d0d; padding: 10px; border-radius: 4px; border: 1px solid #1a1a1a; }
-    .price-val { font-family: 'JetBrains Mono', monospace; font-size: 28px; color: #00ff88; font-weight: bold; }
-    .label { color: #555; font-size: 10px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; }
-    .reason-box { background: #111; padding: 15px; border-radius: 4px; border-left: 2px solid #555; font-size: 13px; color: #aaa; margin-top: 10px; }
-    /* Style pour rendre les expanders plus discrets */
-    .stSignalsExpander { border: none !important; background: none !important; }
+    .kz-card { background: #0d0d0d; border: 1px solid #1a1a1a; padding: 20px; border-radius: 4px; margin-bottom: 15px; }
+    .label { color: #555; font-size: 10px; text-transform: uppercase; font-weight: bold; letter-spacing: 1.5px; margin-bottom: 10px; }
+    .val-quant { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: bold; }
+    .bar-bg { background: #1a1a1a; height: 8px; border-radius: 4px; margin: 8px 0; overflow: hidden; }
+    .bar-bull { background: #00ff88; height: 100%; transition: width 1s; }
+    .force-box { border-left: 2px solid #333; padding-left: 15px; margin-bottom: 15px; background: rgba(255,255,255,0.01); padding: 10px; }
 </style>
 """, unsafe_allow_html=True)
+
+def analyze_sentiment_scores(news_entries):
+    # Initialisation des scores de base (tes références)
+    geo_score = 28.0
+    cb_score = 18.0
+    etf_score = 9.0
+    
+    # Analyse de texte simple pour ajuster les scores en temps réel
+    text_blob = " ".join([n.title.lower() for n in news_entries])
+    
+    # Géopolitique (Guerre, Tensions, Middle East, Ukraine)
+    if any(word in text_blob for word in ['guerre', 'conflit', 'tension', 'frappe', 'missile', 'iran', 'russie']):
+        geo_score += 4.5
+    
+    # Banques Centrales (Fed, BCE, Taux, Inflation)
+    if any(word in text_blob for word in ['fed', 'bce', 'inflation', 'taux', 'powell', 'lagarde']):
+        cb_score += 2.2
+        
+    return geo_score, cb_score, etf_score
 
 def get_market_data():
     try:
@@ -25,70 +43,81 @@ def get_market_data():
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
         btc = yf.Ticker("BTC-USD").fast_info['last_price']
-        # Flux News FR
-        feed = feedparser.parse("https://news.google.com/rss/search?q=or+bourse+forex&hl=fr&gl=FR&ceid=FR:fr")
-        sorted_news = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)
-        return gold, dxy, yields, btc, sorted_news[:12]
+        
+        feed = feedparser.parse("https://news.google.com/rss/search?q=or+bourse+forex+geopolitique&hl=fr&gl=FR&ceid=FR:fr")
+        news = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:10]
+        
+        geo, cb, etf = analyze_sentiment_scores(news)
+        return gold, dxy, yields, btc, news, geo, cb, etf
     except: return None
 
-gold, dxy, yields, btc, news = get_market_data()
+data = get_market_data()
+if data:
+    gold, dxy, yields, btc, news, geo, cb, etf = data
+    
+    # Calcul Dominance
+    total_bull_force = geo + cb + etf
+    # Ajustement par rapport aux vents contraires (DXY/Yields)
+    market_drag = (dxy - 100) + (yields * 10)
+    final_bull_dominance = min(max(total_bull_force - market_drag, 10), 100)
+    
+    # --- INTERFACE ---
+    st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center;'><div><h2 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST QUANT</h2></div><div class='val-quant' style='color:#00ff88;'>XAU: {gold:,.2f} $</div></div>", unsafe_allow_html=True)
+    st.markdown("---")
 
-# --- MOTEUR D'ANALYSE ---
-can_buy = dxy < 118.05 and yields < 2.00
-signal = "ACHAT (BUY)" if can_buy else "NE PAS ENTRER"
-entry, sl, tp = (gold, gold-15, gold+30) if can_buy else (0, 0, 0)
+    col1, col2, col3 = st.columns([1.2, 1.5, 0.8])
 
-# --- AFFICHAGE ---
-st.markdown(f"<h2 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST TACTICAL UNIT</h2>", unsafe_allow_html=True)
-st.markdown("---")
-
-col_news, col_strat, col_market = st.columns([1.5, 1.2, 0.8])
-
-with col_news:
-    st.markdown("<p class='label'>● JOURNAL DES DÉPÊCHES (CLIQUEZ POUR LIRE)</p>", unsafe_allow_html=True)
-    for i, n in enumerate(news):
-        # Utilisation de st.expander pour simuler le clic sur la banderole
-        with st.expander(f"🕒 {n.published[5:16]} | {n.title[:80]}..."):
-            st.write(f"**Titre complet :** {n.title}")
-            st.write(f"**Date de publication :** {n.published}")
-            # Nettoyage sommaire de la description si disponible
-            summary = n.summary if 'summary' in n else "Aucun résumé disponible."
-            st.markdown(f"<div style='color:#bbb; font-size:14px;'>{summary}</div>", unsafe_allow_html=True)
-            st.markdown(f"[🔗 Lire l'article complet]({n.link})")
-
-with col_strat:
-    st.markdown("<p class='label'>● ANALYSE TACTIQUE DYNAMIQUE</p>", unsafe_allow_html=True)
-    st.markdown(f"""<div class="strat-card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span class="label">SIGNAL :</span> 
-            <span style="color:{'#00ff88' if can_buy else '#ffb000'}; font-weight:bold; font-size:22px;">{signal}</span>
+    with col1:
+        st.markdown("<p class='label'>● ANALYSE DES FORCES RÉELLES</p>", unsafe_allow_html=True)
+        
+        st.markdown(f"""
+        <div class="force-box">
+            <small class="label" style="color:#00ff88;">GÉOPOLITIQUE</small><br>
+            <span class="val-quant">+{geo:.2f}</span><br>
+            <small style="color:#444;">Score basé sur l'indice de stress actuel</small>
         </div>
-        <hr style='border-color:#222;'>
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; text-align:center;">
-            <div><small class='label'>ENTRÉE</small><br><b>{f"{entry:,.2f}" if can_buy else '--'}</b></div>
-            <div><small class='label'>STOP LOSS</small><br><b style='color:#ff4b4b;'>{f"{sl:,.2f}" if can_buy else '--'}</b></div>
-            <div><small class='label'>TAKE PROFIT</small><br><b style='color:#00ff88;'>{f"{tp:,.2f}" if can_buy else '--'}</b></div>
+        <div class="force-box">
+            <small class="label" style="color:#58a6ff;">BANQUES CENTRALES</small><br>
+            <span class="val-quant">+{cb:.2f}</span><br>
+            <small style="color:#444;">Pression monétaire et achats physiques</small>
         </div>
-        <hr style='border-color:#222;'>
-        <span class="label">DIAGNOSTIC MACRO :</span><br>
-        <div class="reason-box">
-            - DXY : {'Favorable' if dxy < 118.05 else 'Alerte Force'}<br>
-            - Yields : {'Stable' if yields < 2.00 else 'Danger > 2%'}<br>
-            - Sentiment : {'Neutre/Haussier' if gold > 4700 else 'Neutre/Baissier'}
+        <div class="force-box">
+            <small class="label" style="color:#ffb000;">FLUX ETF / INSTITUTIONNEL</small><br>
+            <span class="val-quant">+{etf:.2f}</span><br>
+            <small style="color:#444;">Demande globale de sécurité</small>
         </div>
-    </div>""", unsafe_allow_html=True)
+        """)
 
-with col_market:
-    st.markdown("<p class='label'>● PRIX EN DIRECT (2s)</p>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background:#0d0d0d; padding:15px; border-radius:4px; margin-bottom:10px; border:1px solid #1a1a1a; text-align:center;'><small class='label'>GOLD</small><br><span class='price-val'>{gold:,.2f}</span></div>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background:#0d0d0d; padding:15px; border-radius:4px; margin-bottom:10px; border:1px solid #1a1a1a; text-align:center;'><small class='label'>DXY</small><br><span class='price-val' style='color:#eee;'>{dxy:.2f}</span></div>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background:#0d0d0d; padding:15px; border-radius:4px; border:1px solid #1a1a1a; text-align:center;'><small class='label'>BTC</small><br><span class='price-val' style='color:#58a6ff;'>{btc:,.0f}</span></div>", unsafe_allow_html=True)
+    with col2:
+        st.markdown("<p class='label'>● DOMINANCE & EXÉCUTION</p>", unsafe_allow_html=True)
+        st.markdown(f"<small style='color:#00ff88;'>BULL DOMINANCE : {final_bull_dominance:.1f}%</small><div class='bar-bg'><div class='bar-bull' style='width:{final_bull_dominance}%'></div></div>", unsafe_allow_html=True)
+        
+        can_trade = final_bull_dominance > 55 and yields < 2.00
+        lot = (959.56 * 0.02) / 150 if can_trade else 0.0
+        
+        st.markdown(f"""<div class='kz-card' style='border-top: 3px solid #ffb000; text-align:center;'>
+            <small class="label">SIGNAL DYNAMIQUE</small><br>
+            <b style="font-size:24px; color:{'#00ff88' if can_trade else '#ffb000'};">{'ACHAT (BUY)' if can_trade else 'CADRAGE DÉFENSIF'}</b>
+            <hr style='border-color:#222;'>
+            <small class="label">TAILLE DE LOT</small><br>
+            <span style="font-size:45px; font-weight:900; color:#00ff88;">{lot:.2f}</span>
+            <div style="margin-top:10px; color:#444; font-size:11px;">Basé sur Capital 959.56 GBP | Risque 2%</div>
+        </div>""", unsafe_allow_html=True)
 
-# Footer Verdict
-status_color = "#00ff88" if can_buy else "#ffb000"
-st.markdown(f"<div style='background:{status_color}; color:black; text-align:center; padding:15px; font-weight:900; margin-top:20px; border-radius:4px;'>VERDICT : {'ACCORD EXÉCUTION' if can_buy else 'ATTENTE CONFLUENCE'}</div>", unsafe_allow_html=True)
+    with col3:
+        st.markdown("<p class='label'>● SYNCHRO MACRO</p>", unsafe_allow_html=True)
+        st.metric("DXY BROAD", f"{dxy:.2f}")
+        st.metric("REAL YIELDS", f"{yields:.2f}%")
+        st.metric("BTC / USD", f"{btc:,.0f}")
 
-# Auto-refresh invisible 2s
+    st.markdown("---")
+    st.markdown("<p class='label'>● DERNIÈRES DÉPÊCHES ANALYSÉES</p>", unsafe_allow_html=True)
+    for n in news[:5]:
+        with st.expander(f"🕒 {n.published[5:16]} | {n.title}"):
+            st.write(n.summary)
+            st.markdown(f"[Lire la suite]({n.link})")
+
+# Auto-refresh 5s (plus stable pour les calculs de sentiment)
 import time
-time.sleep(2)
+time.sleep(5)
 st.rerun()
