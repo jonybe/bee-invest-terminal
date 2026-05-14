@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V67 LOCKED)
+# 1. Configuration & Design System (V68 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -56,6 +56,8 @@ def sync_terminal():
         # Context Data
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
+        vix = yf.Ticker("^VIX").fast_info['last_price'] # AJOUT DU VIX
+        
         feed = feedparser.parse("https://news.google.com/rss/search?q=XAU+Gold+Forex+PPI+CPI+PMI+FED&hl=en")
         news_list = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:4]
         
@@ -75,13 +77,13 @@ def sync_terminal():
 
         # Sensors & Score
         h4_p = min(max(50 + ((gold - df_m15['Close'].mean())/2), 10), 90)
-        drag = (dxy - 100) + (yields * 5)
+        drag = (dxy - 100) + (yields * 5) + (vix * 0.5)
         bull_score = min(max(55.0 - drag + (m15_imp * 35), 10), 100)
         status_text = "NEUTRAL" if 42 <= bull_score <= 58 else "BULLISH" if bull_score > 58 else "BEARISH"
         status_color = "#ffb000" if status_text == "NEUTRAL" else "#00ff88" if status_text == "BULLISH" else "#ff4b4b"
 
         # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V67 FULL SENSORS | M15</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V68 VIX ENGINE | M15</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -119,13 +121,15 @@ def sync_terminal():
             st.markdown("<p class='label'>● BULL VS BEAR DOMINANCE</p>", unsafe_allow_html=True)
             st.markdown(f"""<div class='kz-card'><div style='display:flex; justify-content:space-between;'><small>IMPULSE M15</small><small style='color:{status_color}; font-weight:bold;'>{m15_imp:+.3f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{bull_score}%'></div></div></div>""", unsafe_allow_html=True)
             
-            # --- LES CAPTEURS DE PRESSION RESTAURÉS ---
+            # Sensors
             st.markdown("<p class='label'>● PRESSURE SENSORS</p>", unsafe_allow_html=True)
             for ut, pr in [("H4 TREND", h4_p), ("H2 FLOW", h4_p-5), ("M15 MOMENTUM", h4_p+(m15_imp*35))]:
                 st.markdown(f"<div style='display:flex; justify-content:space-between;'><small>{ut}</small><small>{pr:.1f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{pr}%'></div></div>", unsafe_allow_html=True)
             
+            # Macro Metrics (VIX INCLUS)
             st.metric("DXY INDEX", f"{dxy:.2f}")
             st.metric("REAL YIELDS", f"{yields:.2f}%")
+            st.metric("VIX INDEX", f"{vix:.2f}") # AFFICHAGE VIX
             
             # Calendrier
             st.markdown("<p class='label'>● ECONOMIC CALENDAR (LIVE)</p>", unsafe_allow_html=True)
