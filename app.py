@@ -5,8 +5,8 @@ import math
 import pandas as pd
 from datetime import datetime, timedelta
 
-# 1. Configuration & Design System (V23/V26/V28)
-st.set_page_config(page_title="BEE-INVEST | MASTER ROADMAP", layout="wide")
+# 1. Config & Design System (V23 à V29)
+st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
 <style>
@@ -50,11 +50,15 @@ if data:
     cap = 959.56
     risk = 0.06
     
-    # --- CALCULS AVANCÉS ROADMAP ---
+    # --- LOGIQUE DE RISQUE JONNYBEE ---
     p_restants = math.log(1000000 / cap) / math.log(2)
     prog = (math.log(cap/100) / math.log(1000000/100)) * 100
     lot = (cap * risk) / 150
-    drawdown_max = cap * 0.20 # Sécurité : Arrêt si -20% sur un palier
+    
+    # Drawdown basé sur ta stratégie : Perte Max admise par setup (6%)
+    # On affiche combien de trades perdants consécutifs feraient sauter le palier actuel
+    perte_par_trade = cap * risk
+    survie_trades = cap / perte_par_trade # Combien de trades avant 0 (mathématiquement)
     
     drag = (dxy - 100) + (yields * 5)
     dominance = min(max((geo + cb + etf) - drag, 10), 100)
@@ -62,7 +66,7 @@ if data:
 
     # Header
     h1, h2 = st.columns([2, 1])
-    h1.markdown(f"<h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444; font-size:8px;'>STRATEGIC MASTER ROADMAP | RISK 6%</small>", unsafe_allow_html=True)
+    h1.markdown(f"<h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444; font-size:8px;'>MASTER ROADMAP V30 | RISK 6% | SURVIE : {survie_trades:.0f} TRADES</small>", unsafe_allow_html=True)
     h2.markdown(f"<div style='text-align:right;'><span class='val-quant'>{gold:,.2f} $</span><br><small style='color:#444; font-size:9px;'>{datetime.now().strftime('%H:%M:%S')}</small></div>", unsafe_allow_html=True)
 
     st.markdown("<hr style='margin: 0.2rem 0;'>", unsafe_allow_html=True)
@@ -70,7 +74,7 @@ if data:
     col_main, col_side = st.columns([2, 1])
 
     with col_main:
-        # 1. ROADMAP & PSYCHOLOGIE (ENRICHI)
+        # 1. ROADMAP (CALIBRÉE)
         st.markdown("<p class='label'>● ROADMAP STRATÉGIQUE VERS LE MILLION</p>", unsafe_allow_html=True)
         st.markdown(f"""
         <div class='roadmap-box'>
@@ -80,9 +84,9 @@ if data:
             </div>
             <div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div>
             <div style='display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; font-size:10px; color:#888; margin-top:5px;'>
-                <div>🎯 PROCHAIN : <b>{(cap*2):,.0f} £</b></div>
-                <div>🛡️ DD MAX ADMIS : <b style='color:#ff4b4b;'>{cap-drawdown_max:,.0f} £</b></div>
-                <div>⏱️ EST. TEMPS : <b>~12 mois</b></div>
+                <div>🎯 CIBLE P01 : <b>{(cap*2):,.0f} £</b></div>
+                <div>💰 RISQUE/TRADE : <b style='color:#ff4b4b;'>-{perte_par_trade:.2f} £</b></div>
+                <div>⚖️ LEVIER : <b>ADAPTATIF (6%)</b></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -92,11 +96,11 @@ if data:
         # 2. EXÉCUTION
         c_ex1, c_ex2 = st.columns(2)
         with c_ex1:
-            st.markdown(f"""<div class='kz-card' style='text-align:center; border-left: 3px solid #00ff88;'><small class='label'>LOT ACTUEL (6%)</small><br><span style='font-size:36px; font-weight:900; color:#00ff88;'>{lot:.2f}</span><br><b style='font-size:11px; color:{'#00ff88' if can_trade else '#ffb000'};'>{'SIGNAL ACHAT VALIDÉ' if can_trade else 'WAITING FOR CONFLUENCE'}</b></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='kz-card' style='text-align:center; border-left: 3px solid #00ff88;'><small class='label'>LOT ACTUEL</small><br><span style='font-size:36px; font-weight:900; color:#00ff88;'>{lot:.2f}</span><br><b style='font-size:11px; color:{'#00ff88' if can_trade else '#ffb000'};'>{'ACHAT VALIDÉ' if can_trade else 'WAITING'}</b></div>""", unsafe_allow_html=True)
         with c_ex2:
             st.markdown(f"""<div class='kz-card' style='font-size:11px;'><small class='label'>OBJECTIFS DE PRIX</small><br>🟢 TP FINAL : <b>{gold+30:,.1f}</b><br>🟢 TP PARTIEL : <b>{gold+15:,.1f}</b><br>⚪ ENTRY : <b>{gold:,.1f}</b><br>🔴 SL : <b>{gold-15:,.1f}</b></div>""", unsafe_allow_html=True)
 
-        # 3. DIAGRAMME DE CROISSANCE (FIXÉ)
+        # 3. DIAGRAMME & TABLEAU (V28/29 INTACTS)
         st.markdown("<p class='label'>● COURBE DE CROISSANCE COMPOSÉE</p>", unsafe_allow_html=True)
         p_list = []
         temp_cap = cap
@@ -107,26 +111,23 @@ if data:
             p_list.append({
                 "ID": f"P{i:02}", 
                 "Capital": temp_cap,
+                "Lot": (temp_cap * risk) / 150,
                 "Echéance": date_p.strftime('%m/%Y'),
-                "Retrait": temp_cap * 0.1 if temp_cap > 5000 else 0,
-                "Lot": (temp_cap * 0.06) / 150,
-                "Phase": "ACCUMULATION" if temp_cap < 50000 else "SÉCURITÉ" if temp_cap < 500000 else "LIBERTÉ"
+                "Retrait": temp_cap * 0.1 if temp_cap > 5000 else 0
             })
         df_p = pd.DataFrame(p_list)
         st.line_chart(df_p.set_index("ID")["Capital"])
 
-        # 4. TABLEAU DÉTAILLÉ (ENRICHI)
         st.markdown("<p class='label'>● PLAN DE GUERRE : PALIERS & GESTION DE LOTS</p>", unsafe_allow_html=True)
-        st.table(df_p[["ID", "Capital", "Lot", "Echéance", "Phase", "Retrait"]].head(10))
+        st.table(df_p[["ID", "Capital", "Lot", "Echéance", "Retrait"]].head(10))
 
-        # 5. NEWS
+        # 4. NEWS
         st.markdown("<p class='label'>● DERNIÈRES DÉPÊCHES ANALYSÉES</p>", unsafe_allow_html=True)
         for n in news:
             with st.expander(f"🕒 {n.published[5:16]} | {n.title[:65]}..."):
                 st.markdown(f"<small style='color:#aaa;'>{n.title}</small><br>[Lire]({n.link})", unsafe_allow_html=True)
 
     with col_side:
-        # SURVEILLANCE
         st.markdown("<p class='label'>● SURVEILLANCE MARCHÉ</p>", unsafe_allow_html=True)
         st.metric("DOMINANCE", f"{dominance:.1f}%")
         st.metric("DXY BROAD", f"{dxy:.2f}")
@@ -135,7 +136,7 @@ if data:
         st.markdown(f"""<div class='kz-card' style='font-size:10px; padding:8px;'><p class='label'>FORCES RÉELLES</p>🌍 Géo : <b>+{geo:.1f}</b><br>🏛️ BCE : <b>+{cb:.1f}</b><br>💰 ETF : <b>+{etf:.1f}</b></div>""", unsafe_allow_html=True)
         
         st.markdown("<p class='label'>● DISCIPLINE DE TRADING</p>", unsafe_allow_html=True)
-        st.warning("1. Ne pas déplacer le SL\n2. Sortir 50% au TP1\n3. Break-even après TP1")
+        st.info("1. Risque fixe 6%\n2. Aucune émotion sur le SL\n3. TP1 = Sécurité mentale")
 
     # Footer Verdict
     st.markdown(f"<div style='background:{'#00ff88' if can_trade else '#ffb000'}; color:black; text-align:center; padding:6px; font-weight:900; font-size:12px; border-radius:4px; margin-top:5px;'>VERDICT : {'ACCORD EXÉCUTION' if can_trade else 'ATTENTE CONFLUENCE'}</div>", unsafe_allow_html=True)
