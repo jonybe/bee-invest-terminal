@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V63 LOCKED)
+# 1. Configuration & Design System (V64 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -59,27 +59,24 @@ def sync_terminal():
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
         
-        # Advanced Calendar Extraction
-        feed = feedparser.parse("https://news.google.com/rss/search?q=XAU+Gold+PPI+CPI+PMI+FED+Calendar&hl=en")
+        # Calendar & News Feed
+        feed = feedparser.parse("https://news.google.com/rss/search?q=XAU+Gold+Forex+PPI+CPI+PMI+FED&hl=en")
+        news_list = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:4]
+        
         cal_events = []
-        for n in feed.entries[:15]:
+        for n in feed.entries[:20]:
             title = n.title.upper()
-            if any(x in title for x in ["PPI", "CPI", "PMI", "FED", "NFP", "JOBS", "RATE", "UNEMPLOYMENT"]):
-                # Détection d'impact
+            if any(x in title for x in ["PPI", "CPI", "PMI", "FED", "NFP", "JOBS", "RATE"]):
                 impact_lvl = "HIGH" if any(x in title for x in ["FED", "NFP", "CPI", "RATE"]) else "MED"
                 col = "#ff4b4b" if impact_lvl == "HIGH" else "#ffb000"
-                
-                # Tentative de parsing de chiffres (regex pour % ou chiffres)
                 nums = re.findall(r'[-+]?\d*\.\d+|\d+', title)
                 actual = nums[-1] + "%" if nums else "--"
                 expect = nums[0] + "%" if len(nums) > 1 else "--"
-                
                 event_name = next((x for x in ["PPI", "CPI", "PMI", "FED", "NFP", "RATE"] if x in title), "DATA")
                 cal_events.append({"name": event_name, "impact": impact_lvl, "col": col, "act": actual, "exp": expect})
         
-        # Fin de l'extraction unique des événements
         seen = set()
-        unique_events = [x for x in cal_events if not (x['name'] in seen or seen.add(x['name']))]
+        unique_cal = [x for x in cal_events if not (x['name'] in seen or seen.add(x['name']))]
 
         h4_p = min(max(50 + ((df_m15['Close'].iloc[-1] - df_m15['Close'].mean())/2), 10), 90)
         cap, risk_pct = 959.56, 0.06
@@ -92,7 +89,7 @@ def sync_terminal():
         status_color = "#ffb000" if status_text == "NEUTRAL" else "#00ff88" if status_text == "BULLISH" else "#ff4b4b"
 
         # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V63 PRO CALENDAR | M15 CHART</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V64 TOTAL Cockpit | M15 Chart</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         col_main, col_side = st.columns([2, 1])
@@ -110,7 +107,7 @@ def sync_terminal():
             fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=320, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-            # Targets
+            # Targets & Projection
             st.markdown("<p class='label'>● PARAMÈTRES D'EXÉCUTION & PROJECTION FINANCIÈRE</p>", unsafe_allow_html=True)
             c_t1, c_t2 = st.columns(2)
             c_t1.markdown(f"<div class='kz-card' style='font-size:11px; border-left:3px solid #ffb000;'>🟢 <b>TP:</b> {gold + (sl_dyn * 2):,.2f} $<br>⚪ <b>IN:</b> {gold:,.2f} $<br>🔴 <b>SL:</b> {gold - sl_dyn:,.2f} $</div>", unsafe_allow_html=True)
@@ -126,48 +123,31 @@ def sync_terminal():
                 st.markdown(f"""<div class="matrix-row"><div class="m-id">P{i:02}</div><div style="color:white; font-weight:bold; font-size:13px;">{tr:,.0f} £</div><div style="color:#00ff88; font-weight:bold; width:80px;">LOT: {(tr*0.06)/(sl_dyn*10):.2f}</div>{badge}</div>""", unsafe_allow_html=True)
 
         with col_side:
-            # Stats
+            # Dominance & Macro
             st.markdown("<p class='label'>● BULL VS BEAR DOMINANCE</p>", unsafe_allow_html=True)
             st.markdown(f"""<div class='kz-card'><small>IMPULSE M15</small><div class='bar-container'><div class='p-bull' style='width:{bull_score}%'></div></div></div>""", unsafe_allow_html=True)
             st.metric("DXY INDEX", f"{dxy:.2f}")
             st.metric("REAL YIELDS", f"{yields:.2f}%")
             
-            # Intel Sidebar
+            # Strategic Intel
             st.markdown(f"""<div class="intel-desk-sidebar"><p class='label' style='color:#ffb000; margin-bottom:10px;'>⚔️ STRATEGIC INTEL</p><div style="font-size:10px; color:#aaa;"><b>M15 ENGINE :</b> Réactivité x25.<br><b>STATUS :</b> {status_text}</div></div>""", unsafe_allow_html=True)
 
-            # --- NOUVEAU BLOC : CALENDRIER ÉCONOMIQUE ATTRACTIF ---
+            # Calendrier Économique
             st.markdown("<p class='label'>● ECONOMIC CALENDAR (LIVE)</p>", unsafe_allow_html=True)
-            st.markdown("""
-            <div class='kz-card' style='padding: 8px;'>
-                <div class='cal-header'>
-                    <span style='width: 80px;'>EVENT</span>
-                    <span style='width: 45px; text-align: right;'>ACT</span>
-                    <span style='width: 45px; text-align: right;'>EXP</span>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            if unique_events:
-                for ev in unique_events[:5]:
-                    st.markdown(f"""
-                    <div class="cal-row">
-                        <span style="width: 80px;"><span class="impact-dot" style="background:{ev['col']};"></span>{ev['name']}</span>
-                        <span class="cal-val" style="color:#00ff88;">{ev['act']}</span>
-                        <span class="cal-val" style="color:#555;">{ev['exp']}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.markdown("<div style='font-size:10px; color:#444; padding:10px 0;'>No high-impact data today.</div>", unsafe_allow_html=True)
-            
+            st.markdown("<div class='kz-card' style='padding: 8px;'><div class='cal-header'><span style='width: 80px;'>EVENT</span><span style='width: 45px; text-align: right;'>ACT</span><span style='width: 45px; text-align: right;'>EXP</span></div>", unsafe_allow_html=True)
+            if unique_cal:
+                for ev in unique_cal[:4]:
+                    st.markdown(f"<div class='cal-row'><span style='width: 80px;'><span class='impact-dot' style='background:{ev['col']};'></span>{ev['name']}</span><span class='cal-val' style='color:#00ff88;'>{ev['act']}</span><span class='cal-val' style='color:#555;'>{ev['exp']}</span></div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-            # News
-            st.markdown("<p class='label'>● NEWS STREAM</p>", unsafe_allow_html=True)
-            for n in news[:2]:
-                st.markdown(f"<div style='font-size:10px; padding:3px 0;'>🕒 {n.published[5:11]} | {n.title[:45]}...</div>", unsafe_allow_html=True)
+            # News Stream (Rétabli)
+            st.markdown("<p class='label'>● NEWS STREAM (RSS)</p>", unsafe_allow_html=True)
+            for n in news_list[:3]:
+                st.markdown(f"<div style='font-size:10px; border-bottom:1px solid #111; padding:4px 0;'>🕒 {n.published[5:11]} | {n.title[:45]}...</div>", unsafe_allow_html=True)
 
         st.markdown(f"<div style='background:{status_color}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {status_text}</div>", unsafe_allow_html=True)
 
-    except Exception as e:
-        st.warning("Chargement des flux...")
+    except Exception:
+        st.warning("Récupération des flux...")
 
 sync_terminal()
