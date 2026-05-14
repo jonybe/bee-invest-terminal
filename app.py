@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V80 LOCKED)
+# 1. Configuration & Design System (V81 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -61,12 +61,10 @@ def sync_terminal():
         fund_sent = ((geo + cb + etf) / 65.1) * 100
         drag = (dxy - 100) + (yields * 5) + (vix * 0.5)
         bull_score = min(max((geo + cb + etf) - drag + (m15_imp * 35), 10), 100)
-        
-        # 5. SIGNAL LOGIC
         sig_label = "ACHAT" if bull_score > 58 else "VENTE" if bull_score < 42 else "ATTENTE"
         sig_col = "#00ff88" if sig_label == "ACHAT" else "#ff4b4b" if sig_label == "VENTE" else "#ffb000"
         
-        # 6. CALENDAR PARSING
+        # 5. CALENDAR PARSING
         cal_data = []
         for n in feed.entries[:15]:
             title = n.title.upper()
@@ -77,7 +75,7 @@ def sync_terminal():
                     cal_data.append({"name": ev_name, "act": nums[-1]+"%" if nums else "--", "exp": nums[0]+"%" if len(nums)>1 else "--", "col": "#ff4b4b" if "FED" in ev_name or "CPI" in ev_name else "#ffb000"})
 
         # --- RENDER ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V80 P06 ROADMAP | M15 ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V81 DUAL-TRACK MATRIX | M15 ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -106,19 +104,28 @@ def sync_terminal():
                 e, d = gold, 12.0
                 tp, sl = (e+d*2 if opp=="LONG" else e-d*2), (e-d if opp=="LONG" else e+d)
                 sc1, sc2 = st.columns(2)
-                sc1.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>🔥 <b>{opp} SETUP</b><br>⚪ IN: {e:,.2f}<br>🟢 TP: {tp_p:,.2f}<br>🔴 SL: {sl_p:,.2f}</div>", unsafe_allow_html=True)
+                sc1.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>🔥 <b>{opp} SETUP</b><br>⚪ IN: {e:,.2f}<br>🟢 TP: {tp:,.2f}<br>🔴 SL: {sl:,.2f}</div>", unsafe_allow_html=True)
                 sc2.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>📊 LOTS: {(cap*0.06)/(d*10):.2f}<br>💰 GAIN: +{(cap*0.06)*2:.2f} £</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<div class='kz-card' style='text-align:center; color:#444; padding:20px;'>⌛ WAITING FOR SETUP...</div>", unsafe_allow_html=True)
 
-            # --- MATRIX ROADMAP AVEC P06 ---
-            st.markdown("<p class='label'>● MATRIX ROADMAP : ÉVOLUTION DU CAPITAL RÉEL</p>", unsafe_allow_html=True)
+            # --- MATRIX ROADMAP DUAL TRACK (RESTORED & EXPANDED) ---
+            st.markdown("<p class='label'>● MATRIX ROADMAP : RÉEL (AVEC RETRAITS) | BRUT (SANS RETRAITS)</p>", unsafe_allow_html=True)
             tr_m = cap
-            for i in range(1, 7): # Changement : range 1 à 7 pour inclure P06
+            tr_gross = cap
+            for i in range(1, 7):
                 ret = (tr_m * 0.1) if tr_m > 5000 else 0
                 tr_m = (tr_m * 2) - ret
+                tr_gross = (tr_gross * 2)
                 badge = f"<div class='m-badge-blue'>SORTIE: {ret:,.0f}£</div>" if ret > 0 else f"<div class='m-badge-red'>ACCUMULATION</div>"
-                st.markdown(f"""<div class="matrix-row"><div class="m-id">P{i:02}</div><div style="width:150px; color:white; font-weight:bold; font-size:13px;">{tr_m:,.0f} £</div><div style="color:#00ff88; font-weight:bold;">LOT: {(tr_m*0.06)/120:.2f}</div>{badge}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="matrix-row">
+                    <div class="m-id">P{i:02}</div>
+                    <div style="width:220px;">
+                        <div style="color:white; font-weight:bold; font-size:13px;">{tr_m:,.0f} £ <span style="color:#444; font-size:10px; font-weight:normal;">/ {tr_gross:,.0f} £</span></div>
+                    </div>
+                    <div style="color:#00ff88; font-weight:bold; width:80px;">LOT: {(tr_m*0.06)/120:.2f}</div>
+                    {badge}
+                </div>""", unsafe_allow_html=True)
 
         with c2:
             st.markdown(f"<div style='display:flex; justify-content:space-between; font-weight:bold;'><span style='color:#555;'>BULL SCORE</span><span style='color:{sig_col};'>{sig_label} {bull_score:.1f}%</span></div>", unsafe_allow_html=True)
