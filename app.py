@@ -89,12 +89,12 @@ def bee_invest_elite_v7():
                 </div>
             </div>
             """
-            clear_output(wait=True)
-            display(HTML(html_ui))
-            time.sleep(60)
-            
-        except Exception as e:
-            time.sleep(5)
-            continue
+            # REMPLACE TOUTE LA FIN DU CODE PAR ÇA :
+        return html_ui
+    except Exception as e:
+        return f"Erreur : {e}"
 
-bee_invest_elite_v7()
+# Affichage direct dans Streamlit
+st_html = bee_invest_elite_v7()
+import streamlit as st
+st.components.v1.html(st_html, height=800, width=1300, scrolling=True)
