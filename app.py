@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V97 ULTRA-STATIC)
+# 1. Configuration & Design System (V98 ULTRA-STATIC)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 if 'trades' not in st.session_state:
@@ -15,20 +15,16 @@ if 'trades' not in st.session_state:
 if 'last_m5_ts' not in st.session_state:
     st.session_state.last_m5_ts = None
 
-# CSS CHIRURGICAL ANTI-SCINTILLEMENT (STABLE)
+# CSS ANTI-SCINTILLEMENT (VERROUILLÉ)
 st.markdown("""
 <style>
     :root {
         --st-fragment-fade-opacity: 1 !important;
         --st-fragment-fade-duration: 0ms !important;
     }
-    div[data-testid="stAppViewBlockContainer"], 
-    div[data-testid="stVerticalBlock"],
-    div[data-fragment-component-id],
-    [data-testid="stFragment"] {
-        opacity: 1 !important;
-        transition: none !important;
-        filter: none !important;
+    div[data-testid="stAppViewBlockContainer"], div[data-testid="stVerticalBlock"],
+    div[data-fragment-component-id], [data-testid="stFragment"] {
+        opacity: 1 !important; transition: none !important; filter: none !important;
     }
     html, body, [data-testid="stAppViewContainer"] { background-color: #050505 !important; color: #e0e0e0; font-family: 'Inter', sans-serif; font-size: 11.5px; }
     .block-container { padding-top: 3.5rem !important; padding-bottom: 0rem !important; }
@@ -36,28 +32,22 @@ st.markdown("""
     
     /* DOMINANCE MODULE CSS */
     .dom-container { background: #080808; border: 1px solid #151515; border-radius: 6px; padding: 20px; margin-bottom: 15px; }
-    .dom-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-    .dom-title { color: #e0e0e0; font-size: 11px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
     .flow-row { margin-bottom: 22px; position: relative; }
-    .flow-label { color: #444; font-size: 8px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
     .flow-meta { display: flex; justify-content: space-between; font-family: 'JetBrains Mono'; font-size: 16px; font-weight: bold; margin-bottom: 2px; }
-    .flow-bar-bg { height: 12px; background: #ff4b4b; border-radius: 2px; overflow: hidden; display: flex; position: relative; }
+    .flow-bar-bg { height: 14px; background: #ff4b4b; border-radius: 2px; overflow: hidden; display: flex; position: relative; }
     .flow-bar-fill { height: 100%; background: #00ff88; transition: 0.5s; }
-    .leaning-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10; 
-                     background: rgba(10,10,10,0.95); border: 1px solid #222; padding: 3px 12px; border-radius: 4px; text-align: center; min-width: 120px; }
     
-    /* MATRIXBADGES */
+    /* BADGE LABELLISÉ (NOUVEAU) */
+    .leaning-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10; 
+                     background: rgba(10,10,10,0.95); border: 1px solid #222; padding: 2px 12px; border-radius: 4px; text-align: center; min-width: 130px; }
+    .tf-label { font-size: 7px; color: #555; font-weight: bold; text-transform: uppercase; margin-bottom: -2px; }
+    .leaning-text { font-size: 8px; font-weight: 900; text-transform: uppercase; }
+    
     .matrix-row { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 15, 15, 0.8); border: 1px solid #1a1a1a; margin-bottom: 5px; padding: 12px 18px; border-radius: 4px; }
     .m-id { color: #ffb000; font-family: 'JetBrains Mono'; font-weight: 900; width: 45px; font-size: 14px; }
     .m-badge-red { padding: 4px 10px; border-radius: 12px; font-size: 8.5px; font-weight: bold; text-transform: uppercase; background: rgba(255, 75, 75, 0.1); color: #ff4b4b; border: 1px solid rgba(255, 75, 75, 0.2); width: 110px; text-align: center; }
     .m-badge-blue { padding: 4px 10px; border-radius: 12px; font-size: 8.5px; font-weight: bold; text-transform: uppercase; background: rgba(88, 166, 255, 0.1); color: #58a6ff; border: 1px solid #58a6ff33; width: 110px; text-align: center; }
-
-    /* CALENDAR & INTEL */
-    .cal-header { display: flex; font-size: 8px; color: #444; border-bottom: 1px solid #222; padding-bottom: 4px; margin-bottom: 5px; font-weight: bold; }
-    .cal-row { display: flex; font-size: 10px; padding: 6px 0; border-bottom: 1px solid #111; align-items: center; }
     .intel-box { background: #0a0a0a; border-left: 2px solid #ffb000; padding: 10px; margin-top: 10px; border-radius: 0 4px 4px 0; }
-    .intel-title { font-size: 9px; font-weight: 900; color: #ffb000; text-transform: uppercase; margin-bottom: 5px; }
-    .intel-content { font-size: 10px; color: #888; line-height: 1.4; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -71,7 +61,7 @@ def sync_terminal():
         df_m5 = t.history(period="1d", interval="5m").dropna()
         m15_imp = ((gold - df_m15['Close'].iloc[-2]) / df_m15['Close'].iloc[-2]) * 100
         
-        # 2. MACRO & CALENDAR
+        # 2. MACRO & DOMINANCE
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
         vix = yf.Ticker("^VIX").fast_info['last_price']
@@ -88,10 +78,10 @@ def sync_terminal():
         cal_data = []
         for n in feed.entries[:20]:
             title = n.title.upper()
-            if any(k in title for k in ["PPI", "CPI", "FED", "NFP", "JOBS", "RETAIL"]):
-                ev_name = next((k for k in ["PPI", "CPI", "FED", "NFP", "JOBS", "RETAIL"] if k in title), "DATA")
+            if any(k in title for k in ["PPI", "CPI", "FED", "NFP"]):
+                ev_name = next((k for k in ["PPI", "CPI", "FED", "NFP"] if k in title), "DATA")
                 if not any(d['name'] == ev_name for d in cal_data):
-                    cal_data.append({"name": ev_name, "act": "TBD", "col": "#ffb000"})
+                    cal_data.append({"name": ev_name, "act": "TBD"})
 
         # 3. TRADES
         active_trades = []
@@ -112,7 +102,7 @@ def sync_terminal():
             st.session_state.last_m5_ts = curr_m5
 
         # --- RENDER ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V97 ELITE FULL | SOLDE: 953.55 GBP</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V98 LABELLED DOMINANCE | SOLDE: 953.55 GBP</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -121,21 +111,27 @@ def sync_terminal():
             prog = (math.log(cap/100) / math.log(1000000/100)) * 100
             st.markdown(f"<div style='margin-bottom:15px;'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
             
-            # MODULE DOMINANCE (V94)
+            # --- BULL VS BEAR DOMINANCE (WITH TF LABELS) ---
             st.markdown(f"""
             <div class="dom-container">
-                <div class="dom-header"><div style="color:#e0e0e0; font-size:11px; font-weight:bold;">● BULL VS BEAR · DOMINANCE</div><div style="color:#333; font-size:8px;">MACRO = BIAS | INTRADAY = TIMING</div></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:20px;"><div style="color:#e0e0e0; font-size:11px; font-weight:bold; letter-spacing:2px;">● BULL VS BEAR · DOMINANCE</div></div>
                 <div class="flow-row">
                     <div class="flow-meta"><span style="color:#00ff88;">{h4_s}%</span><span style="color:#ff4b4b;">{100-h4_s}%</span></div>
-                    <div class="flow-bar-bg"><div style="width:{h4_s}%; background:#00ff88;"></div><div class="leaning-badge"><div style="font-size:8px; font-weight:900; color:#00ff88;">LEANING BULLISH</div></div></div>
+                    <div class="flow-bar-bg"><div style="width:{h4_s}%; background:#00ff88;"></div>
+                        <div class="leaning-badge"><div class="tf-label">FLUX H4</div><div class="leaning-text" style="color:#00ff88;">LEANING BULLISH</div></div>
+                    </div>
                 </div>
                 <div class="flow-row">
                     <div class="flow-meta"><span style="color:#00ff88;">{h2_s}%</span><span style="color:#ff4b4b;">{100-h2_s}%</span></div>
-                    <div class="flow-bar-bg"><div style="width:{h2_s}%; background:#00ff88;"></div><div class="leaning-badge"><div style="font-size:8px; font-weight:900; color:#00ff88;">LEANING BULLISH</div></div></div>
+                    <div class="flow-bar-bg"><div style="width:{h2_s}%; background:#00ff88;"></div>
+                        <div class="leaning-badge"><div class="tf-label">FLUX H2</div><div class="leaning-text" style="color:#00ff88;">LEANING BULLISH</div></div>
+                    </div>
                 </div>
                 <div class="flow-row">
                     <div class="flow-meta"><span style="color:#00ff88;">{m15_s:.1f}%</span><span style="color:#ff4b4b;">{100-m15_s:.1f}%</span></div>
-                    <div class="flow-bar-bg"><div style="width:{m15_s}%; background:#00ff88;"></div><div class="leaning-badge"><div style="font-size:8px; font-weight:900; color:{'#00ff88' if m15_s > 50 else '#ff4b4b'};">LEANING {'BULLISH' if m15_s > 50 else 'BEARISH'}</div></div></div>
+                    <div class="flow-bar-bg"><div style="width:{m15_s}%; background:#00ff88;"></div>
+                        <div class="leaning-badge"><div class="tf-label">FLUX M15</div><div class="leaning-text" style="color:{'#00ff88' if m15_s > 50 else '#ff4b4b'};">LEANING {'BULLISH' if m15_s > 50 else 'BEARISH'}</div></div>
+                    </div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:25px;">
                     <div style="background:#0a0a0a; border:1px solid #151515; padding:12px; border-top:2px solid #00ff88;"><div style="font-size:9px; color:#00ff88;">SUPPORTING</div><div style="font-family:JetBrains Mono; font-size:20px; font-weight:bold; color:#00ff88;">+{max(0, m15_imp*10):.2f}</div></div>
@@ -145,7 +141,7 @@ def sync_terminal():
             """, unsafe_allow_html=True)
 
             # SETUPS
-            st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase;'>● ACTIVE STRATEGIC SETUPS (M5 PERSISTENT)</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase;'>● ACTIVE SETUPS (M5 PERSISTENT)</p>", unsafe_allow_html=True)
             if st.session_state.trades:
                 tc1, tc2 = st.columns(2)
                 for idx, tr in enumerate(st.session_state.trades):
@@ -154,7 +150,7 @@ def sync_terminal():
                         st.markdown(f"""<div class='kz-card' style='border-left:3px solid {b_c};'><b style='color:{b_c};'>{tr['type']} ACTIVE</b><br><small>{tr['ts'].strftime('%H:%M')}</small><div style='font-family:JetBrains Mono; font-size:10px; margin-top:5px;'>⚪ IN: {tr['in']:,.2f}<br>🟢 TP: {tr['tp']:,.2f}<br>🔴 SL: {tr['sl']:,.2f}</div></div>""", unsafe_allow_html=True)
             else: st.markdown(f"<div class='kz-card' style='text-align:center; color:#444; padding:20px;'>⌛ WAITING FOR M5 SIGNAL...</div>", unsafe_allow_html=True)
 
-            # MATRIX (V96)
+            # MATRIX
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase;'>● MATRIX ROADMAP : RÉEL | BRUT</p>", unsafe_allow_html=True)
             tr_m, tr_g = cap, cap
             for i in range(1, 7):
@@ -177,15 +173,12 @@ def sync_terminal():
                     <div><small style="color:#444;">USD</small><br><b>{dxy:.1f}</b></div>
                 </div></div>""", unsafe_allow_html=True)
 
-            # SENSORS
             st.markdown(f"<div style='display:flex; justify-content:space-between; font-weight:bold; margin-top:10px;'><span style='color:#555;'>BULL SCORE</span><span style='color:{sig_col};'>{sig_label} {bull_score:.1f}%</span></div><div style='background:#1a1a1a; height:6px; border-radius:3px; overflow:hidden;'><div style='background:{sig_col}; width:{bull_score}%; height:100%;'></div></div>", unsafe_allow_html=True)
-            for ut, pr in [("H4 TREND", h4_s), ("H2 FLOW", h2_s), ("M15 MOMENTUM", m15_s)]:
-                st.markdown(f"<div style='display:flex; justify-content:space-between;'><small>{ut}</small><small style='color:#00ff88;'>{pr:.1f}%</small></div><div style='background:#1a1a1a; height:6px; border-radius:3px; overflow:hidden;'><div style='background:#00ff88; width:{pr}%; height:100%;'></div></div>", unsafe_allow_html=True)
             
-            # --- WEEKLY CALENDAR (RESTORED) ---
+            # WEEKLY CALENDAR
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase; margin-top:15px;'>● WEEKLY ECONOMIC CALENDAR</p>", unsafe_allow_html=True)
-            st.markdown("<div class='kz-card' style='padding:8px;'><div class='cal-header'><span>EVENT</span><span style='margin-left:auto;'>ACT / EXP</span></div>" + 
-                "".join([f"<div class='cal-row'><span>● {ev['name']}</span><span style='margin-left:auto; color:#00ff88;'>{ev['act']}</span></div>" for ev in cal_data[:4]]) + "</div>", unsafe_allow_html=True)
+            st.markdown("<div class='kz-card' style='padding:8px;'><div style='display:flex; font-size:8px; color:#444; border-bottom:1px solid #222; padding-bottom:4px; margin-bottom:5px; font-weight:bold;'><span>EVENT</span><span style='margin-left:auto;'>ACT / EXP</span></div>" + 
+                "".join([f"<div style='display:flex; font-size:10px; padding:6px 0; border-bottom:1px solid #111; align-items:center;'><span>● {ev['name']}</span><span style='margin-left:auto; color:#00ff88;'>{ev['act']}</span></div>" for ev in cal_data[:4]]) + "</div>", unsafe_allow_html=True)
             
             # NEWS (5 LIGNES)
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase; margin-top:5px;'>● LIVE NEWS STREAM</p>", unsafe_allow_html=True)
@@ -194,38 +187,14 @@ def sync_terminal():
 
             # --- INTEL SECTION ---
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase; margin-top:15px;'>● STRATEGY INTEL & DEFINITIONS</p>", unsafe_allow_html=True)
-            
-            # Définition Barres de Pression (NEW)
             st.markdown("""
-            <div class="intel-box">
-                <div class="intel-title">📊 PRESSURE BARS DEFINITION</div>
-                <div class="intel-content">
-                    <b>H4 Trend :</b> Macro-tendance de fond. Définit le biais directionnel majeur.<br>
-                    <b>H2 Flow :</b> Flux directionnel intermédiaire. Confirme ou infirme la tendance H4.<br>
-                    <b>M15 Momentum :</b> Réactivité intraday. Crucial pour le timing d'entrée (Execution Layer).
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("""
-            <div class="intel-box">
-                <div class="intel-title">⚙️ VOLUME PROFILE ADVANCED</div>
-                <div class="intel-content">
-                    <b>POC (Point of Control) :</b> Prix pivot institutionnel.<br>
-                    <b>Value Area (VA) :</b> Zone de 70% de l'activité. Un breakout signale un flux directionnel.
-                </div>
-            </div>
-            <div class="intel-box">
-                <div class="intel-title">🌍 GOLD MACRO SYNTHESIS</div>
-                <div class="intel-content">
-                    <b>BULLISH :</b> Dé-dollarisation BRICS+ / Achats Banques Centrales.<br>
-                    <b>BEARISH :</b> Inflation persistante / Yields réels élevés (Fed).
-                </div>
-            </div>
+            <div class="intel-box"><div style="font-size:9px; font-weight:900; color:#ffb000; text-transform:uppercase; margin-bottom:5px;">📊 PRESSURE BARS</div><div style="font-size:10px; color:#888; line-height:1.4;"><b>H4 Trend :</b> Biais macro.<br><b>H2 Flow :</b> Flux intermédiaire.<br><b>M15 Momentum :</b> Timing d'entrée.</div></div>
+            <div class="intel-box"><div style="font-size:9px; font-weight:900; color:#ffb000; text-transform:uppercase; margin-bottom:5px;">⚙️ VOLUME PROFILE</div><div style="font-size:10px; color:#888; line-height:1.4;"><b>POC :</b> Pivot institutionnel.<br><b>VA :</b> Zone de 70% du volume.</div></div>
+            <div class="intel-box"><div style="font-size:9px; font-weight:900; color:#ffb000; text-transform:uppercase; margin-bottom:5px;">🌍 GOLD MACRO</div><div style="font-size:10px; color:#888; line-height:1.4;">Bullish: BRICS+ / CB.<br>Bearish: Inflation / Fed.</div></div>
             """, unsafe_allow_html=True)
 
         st.markdown(f"<div style='background:{sig_col}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {sig_label} | {bull_score:.1f}%</div>", unsafe_allow_html=True)
 
-    except Exception: st.warning("Synchronisation stable...")
+    except Exception: st.warning("Sync stable...")
 
 sync_terminal()
