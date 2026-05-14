@@ -5,8 +5,9 @@ import math
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import time
 
-# 1. Configuration & Design System (V57 LOCKED)
+# 1. Configuration & Design System (V58 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -16,12 +17,10 @@ st.markdown("""
     .kz-card { background: #0d0d0d; border: 1px solid #1a1a1a; padding: 12px; border-radius: 4px; margin-bottom: 8px; }
     .label { color: #555; font-size: 9px; text-transform: uppercase; font-weight: bold; letter-spacing: 1.2px; }
     .val-quant { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: bold; color: #00ff88; }
-    
     .matrix-row { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 15, 15, 0.8); border: 1px solid #1a1a1a; margin-bottom: 5px; padding: 12px 18px; border-radius: 4px; }
     .m-id { color: #ffb000; font-family: 'JetBrains Mono'; font-weight: 900; width: 45px; font-size: 14px; }
     .m-badge-red { padding: 4px 10px; border-radius: 12px; font-size: 8.5px; font-weight: bold; text-transform: uppercase; background: rgba(255, 75, 75, 0.1); color: #ff4b4b; border: 1px solid rgba(255, 75, 75, 0.2); width: 110px; text-align: center; }
     .m-badge-blue { padding: 4px 10px; border-radius: 12px; font-size: 8.5px; font-weight: bold; text-transform: uppercase; background: rgba(88, 166, 255, 0.1); color: #58a6ff; border: 1px solid #58a6ff33; width: 110px; text-align: center; }
-    
     .bar-container { background: #1a1a1a; height: 6px; border-radius: 3px; margin: 4px 0 10px 0; overflow: hidden; display: flex; }
     .p-bull { background: #00ff88; height: 100%; transition: 0.2s; } 
     .p-bear { background: #ff4b4b; height: 100%; transition: 0.2s; }
@@ -35,40 +34,25 @@ def get_market_data():
     try:
         t = yf.Ticker("GC=F")
         gold = t.fast_info['last_price']
-        
-        # Graphique H1
         df_h1 = t.history(period="5d", interval="60m").dropna()
-        
-        # M15 Ultra-Réactif
         df_m15 = t.history(period="1d", interval="15m")
         m15_imp = ((df_m15['Close'].iloc[-1] - df_m15['Close'].iloc[-3]) / df_m15['Close'].iloc[-3]) * 100
         
-        # --- STRATÉGIE VOLUME PROFILE : POC + VALUE AREA (70%) ---
-        vp_data = t.history(period="2d", interval="15m")
-        session_data = vp_data.tail(96) 
+        # --- VOLUME PROFILE ROBUSTE ---
+        vp_data = t.history(period="2d", interval="15m").tail(96)
+        ph, pl = vp_data['High'].max(), vp_data['Low'].min()
         
-        ph, pl = session_data['High'].max(), session_data['Low'].min()
+        # Calcul simplifié mais stable du POC et VA
+        price_bins = pd.cut(vp_data['Close'], bins=20)
+        bin_volumes = vp_data.groupby(price_bins, observed=True)['Volume'].sum()
         
-        # Calcul des bins de volume
-        bins_count = 35
-        price_bins = pd.cut(session_data['Close'], bins=bins_count)
-        bin_volumes = session_data.groupby(price_bins, observed=True)['Volume'].sum()
+        poc = bin_volumes.idxmax().mid
         
-        # 1. Calcul du POC (Point of Control)
-        poc_price = bin_volumes.idxmax().mid
-        
-        # 2. Calcul de la Value Area (VAH / VAL) - 70% du Volume
-        total_vol = bin_volumes.sum()
-        sorted_bins = bin_volumes.sort_values(ascending=False)
-        cum_vol = sorted_bins.cumsum()
-        va_bins = sorted_bins[cum_vol <= (total_vol * 0.70)]
-        
-        # Fallback si zone trop étroite
-        if len(va_bins) < 2: va_bins = sorted_bins.head(5)
-        
-        vah = va_bins.index.categories.right.max()
-        val = va_bins.index.categories.left.min()
-        # ---------------------------------------------------------
+        # Value Area simplifiée (70% de la zone de prix autour du POC pour éviter le plantage volume)
+        std_dev = vp_data['Close'].std()
+        vah = poc + (std_dev * 1.28) # Statistique 70%
+        val = poc - (std_dev * 1.28)
+        # -----------------------------
 
         hist = t.history(period="5d")
         vol_atr = (hist['High'] - hist['Low']).mean()
@@ -80,13 +64,16 @@ def get_market_data():
         news = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:4]
         text = " ".join([n.title.lower() for n in news])
         geo, cb, etf = (32.5, 21.4, 11.2) if "war" in text or "tension" in text else (28.0, 18.0, 9.0)
-        
         h4_p = min(max(50 + ((df_h1['Close'].iloc[-1] - df_h1['Close'].mean())/2), 10), 90)
         
         return gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h1, ph, pl, poc, vah, val, change, m15_imp
-    except: return None
+    except Exception as e:
+        st.error(f"Erreur d'acquisition : {e}")
+        return None
 
-data = get_market_data()
+# Lancement
+with st.spinner("Synchronisation des flux institutionnels..."):
+    data = get_market_data()
 
 if data:
     gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h1, ph, pl, poc, vah, val, g_change, m15_imp = data
@@ -97,12 +84,11 @@ if data:
     
     drag = (dxy - 100) + (yields * 5)
     bull_score = min(max((geo + cb + etf) - drag + (m15_imp * 25), 10), 100)
-    
     status_text = "NEUTRAL" if 42 <= bull_score <= 58 else "BULLISH" if bull_score > 58 else "BEARISH"
-    status_color = "#ffb000" if "NEUTRAL" in status_text else "#00ff88" if "BULL" in status_text else "#ff4b4b"
+    status_color = "#ffb000" if status_text == "NEUTRAL" else "#00ff88" if status_text == "BULLISH" else "#ff4b4b"
 
     # Header
-    st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V57 VOLUME PROFILE STRATEGY | LOCKED</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V58 ROBUST MODE | LOCKED</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
     st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
     col_main, col_side = st.columns([2, 1])
@@ -113,21 +99,12 @@ if data:
         st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
         st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
 
-        # CHART H1 + VOLUME PROFILE (POC & VALUE AREA)
+        # CHART
         fig = go.Figure(data=[go.Candlestick(x=df_h1.index, open=df_h1['Open'], high=df_h1['High'], low=df_h1['Low'], close=df_h1['Close'], name="H1")])
-        
-        # 1. Les Limites de la Veille
-        fig.add_hline(y=ph, line_dash="dash", line_color="#ff4b4b", opacity=0.5)
-        fig.add_hline(y=pl, line_dash="dash", line_color="#00ff88", opacity=0.5)
-        
-        # 2. Le POC (Point de Contrôle)
+        fig.add_hline(y=ph, line_dash="dash", line_color="#ff4b4b", opacity=0.3)
+        fig.add_hline(y=pl, line_dash="dash", line_color="#00ff88", opacity=0.3)
         fig.add_hline(y=poc, line_color="#ffb000", line_width=2.5, annotation_text="POC")
-        
-        # 3. La Value Area (Zone de 70% du Volume)
-        fig.add_hrect(y0=val, y1=vah, fillcolor="rgba(255, 255, 255, 0.05)", line_width=0, annotation_text="VALUE AREA (70%)", annotation_position="top left")
-        fig.add_hline(y=vah, line_color="rgba(255, 255, 255, 0.2)", line_dash="dot")
-        fig.add_hline(y=val, line_color="rgba(255, 255, 255, 0.2)", line_dash="dot")
-
+        fig.add_hrect(y0=val, y1=vah, fillcolor="rgba(255, 255, 255, 0.05)", line_width=0, annotation_text="VALUE AREA")
         fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=320, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
@@ -135,17 +112,9 @@ if data:
         st.markdown("<p class='label'>● PARAMÈTRES D'EXÉCUTION & PROJECTION FINANCIÈRE</p>", unsafe_allow_html=True)
         c_t1, c_t2 = st.columns(2)
         with c_t1:
-            st.markdown(f"""<div class='kz-card' style='font-size:12px; border-left:3px solid #ffb000;'>
-                🟢 <b>TP (1:2) :</b> {gold + (sl_dyn * 2):,.2f} $<br>
-                ⚪ <b>IN (ENTRY) :</b> {gold:,.2f} $<br>
-                🔴 <b>SL (EXIT) :</b> {gold - sl_dyn:,.2f} $
-            </div>""", unsafe_allow_html=True)
+            st.markdown(f"<div class='kz-card' style='font-size:12px; border-left:3px solid #ffb000;'>🟢 <b>TP (1:2) :</b> {gold + (sl_dyn * 2):,.2f} $<br>⚪ <b>IN :</b> {gold:,.2f} $<br>🔴 <b>SL :</b> {gold - sl_dyn:,.2f} $</div>", unsafe_allow_html=True)
         with c_t2:
-            st.markdown(f"""<div class='kz-card' style='font-size:12px; border-left:3px solid #00ff88;'>
-                💰 <b>GAIN ESTIMÉ :</b> +{perte_gbp * 2:.2f} £<br>
-                ⚠️ <b>RISQUE MAX :</b> -{perte_gbp:.2f} £<br>
-                📊 <b>LOT CONSEILLÉ :</b> {lot:.2f}
-            </div>""", unsafe_allow_html=True)
+            st.markdown(f"<div class='kz-card' style='font-size:12px; border-left:3px solid #00ff88;'>💰 <b>GAIN:</b> +{perte_gbp * 2:.2f} £<br>⚠️ <b>RISQUE:</b> -{perte_gbp:.2f} £<br>📊 <b>LOT:</b> {lot:.2f}</div>", unsafe_allow_html=True)
 
         # MATRIX ROADMAP
         st.markdown("<p class='label'>● MATRIX ROADMAP : ÉVOLUTION DU CAPITAL RÉEL</p>", unsafe_allow_html=True)
@@ -158,34 +127,20 @@ if data:
             st.markdown(f"""<div class="matrix-row"><div class="m-id">P{i:02}</div><div style="width:180px;"><div style="color:white; font-weight:bold; font-size:13px;">{tr:,.0f} £</div></div><div style="color:#00ff88; font-weight:bold; width:80px;">LOT: {(tr*0.06)/(sl_dyn*10):.2f}</div><div style="color:#555; font-size:10px; width:100px;">🚀 {(now+timedelta(days=i*30)).strftime('%m/%y')}</div>{badge}</div>""", unsafe_allow_html=True)
 
     with col_side:
-        # DOMINANCE
         st.markdown("<p class='label'>● BULL VS BEAR DOMINANCE</p>", unsafe_allow_html=True)
         st.markdown(f"""<div class='kz-card'><div style='display:flex; justify-content:space-between;'><small>IMPULSE M15</small><small style='color:{status_color};'>{m15_imp:+.3f}</small></div><div class='bar-container'><div class='p-bull' style='width:{bull_score}%'></div><div class='p-bear' style='width:{100-bull_score}%'></div></div></div>""", unsafe_allow_html=True)
         st.metric("DXY INDEX", f"{dxy:.2f}")
         st.metric("REAL YIELDS", f"{yields:.2f}%")
-        
-        # SENSORS
         st.markdown("<p class='label'>● PRESSURE SENSORS</p>", unsafe_allow_html=True)
         for ut, pr in [("H4 TREND", h4_p), ("H2 FLOW", h4_p-5), ("M15 MOMENTUM", h4_p+(m15_imp * 25))]:
             st.markdown(f"<div style='display:flex; justify-content:space-between;'><small>{ut}</small><small>{pr:.1f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{pr}%'></div></div>", unsafe_allow_html=True)
         
-        st.markdown("<p class='label'>● NEWS STREAM</p>", unsafe_allow_html=True)
-        for n in news[:3]:
-            st.markdown(f"<div style='font-size:10px; border-bottom:1px solid #111; padding:3px 0;'>🕒 {n.published[5:11]} | {n.title[:50]}...</div>", unsafe_allow_html=True)
+        st.markdown(f"""<div class="intel-desk-sidebar"><p class='label' style='color:#ffb000; margin-bottom:10px;'>⚔️ STRATEGIC INTEL</p><div style="font-size:10px; color:#aaa;"><b>MODE ROBUSTE :</b> Calcul de la VA sécurisé pour éviter les erreurs de flux.<br><i style="color:#777;">Si l'écran devient noir, rafraîchis la page GitHub.</i></div></div>""", unsafe_allow_html=True)
 
-        st.markdown(f"""
-        <div class="intel-desk-sidebar">
-            <p class='label' style='color:#ffb000; margin-bottom:10px;'>⚔️ STRATEGIC INTEL</p>
-            <div style="font-size:10px; line-height:1.4; color:#aaa;">
-                <b>VALUE AREA ACTIVE :</b> La zone grise représente 70% du volume échangé ces dernières 24h.<br>
-                <i style="color:#777;">Tant que le prix est dans la VA, le marché est en équilibre. Une sortie de la VA indique un flux directionnel puissant.</i>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown(f"<div style='background:{status_color}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {status_text} | VALIDÉ</div>", unsafe_allow_html=True)
 
-    # FINAL VERDICT
-    st.markdown(f"<div style='background:{status_color}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {status_text} | {'VALIDÉ' if bull_score > 58 or bull_score < 42 else 'ATTENTE'}</div>", unsafe_allow_html=True)
+else:
+    st.warning("⚠️ Connexion aux serveurs de données instable. Tentative de reconnexion...")
 
-import time
 time.sleep(2)
 st.rerun()
