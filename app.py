@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V84 LOCKED)
+# 1. Configuration & Design System (V85 ANTI-DIMMING)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 if 'trades' not in st.session_state:
@@ -17,6 +17,10 @@ if 'last_m5_ts' not in st.session_state:
 
 st.markdown("""
 <style>
+    /* FIX ASSOMBRISSEMENT : Force l'opacité lors du refresh */
+    [data-testid="stAppViewBlockContainer"] { opacity: 1 !important; transition: none !important; }
+    [data-testid="stVerticalBlock"] { opacity: 1 !important; }
+    
     html, body, [data-testid="stAppViewContainer"] { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; font-size: 11.5px; }
     .block-container { padding-top: 3.5rem !important; padding-bottom: 0rem !important; }
     .kz-card { background: #0d0d0d; border: 1px solid #1a1a1a; padding: 12px; border-radius: 4px; margin-bottom: 8px; }
@@ -39,7 +43,7 @@ st.markdown("""
 @st.fragment(run_every=3)
 def sync_terminal():
     try:
-        # 1. FETCH DATA
+        # 1. FETCH
         t = yf.Ticker("GC=F")
         gold = t.fast_info['last_price']
         df_m15 = t.history(period="2d", interval="15m").dropna()
@@ -55,7 +59,7 @@ def sync_terminal():
         poc_p = p_min + (v_profile.idxmax() * bin_size) + (bin_size/2)
         vah, val = poc_p + (vp_data['Close'].std() * 1.1), poc_p - (vp_data['Close'].std() * 1.1)
 
-        # 3. MACRO & NEWS (REQUÊTE ÉLARGIE POUR LE CALENDRIER HEBDO)
+        # 3. MACRO & SCORES
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
         vix = yf.Ticker("^VIX").fast_info['last_price']
@@ -69,23 +73,18 @@ def sync_terminal():
         sig_label = "ACHAT" if bull_score > 58 else "VENTE" if bull_score < 42 else "ATTENTE"
         sig_col = "#00ff88" if sig_label == "ACHAT" else "#ff4b4b" if sig_label == "VENTE" else "#ffb000"
 
-        # 4. CALENDAR PARSING AMÉLIORÉ (WEEKLY FOCUS)
+        # 4. WEEKLY CALENDAR
         cal_data = []
-        keywords = ["PPI", "CPI", "PMI", "FED", "NFP", "JOBS", "RETAIL", "INFLATION"]
-        for n in feed.entries[:30]:
+        kw = ["PPI", "CPI", "PMI", "FED", "NFP", "JOBS", "RETAIL"]
+        for n in feed.entries[:25]:
             title = n.title.upper()
-            if any(k in title for k in keywords):
-                ev_name = next((k for k in keywords if k in title), "DATA")
+            if any(k in title for k in kw):
+                ev_name = next((k for k in kw if k in title), "DATA")
                 if not any(d['name'] == ev_name for d in cal_data):
                     nums = re.findall(r'\d+\.\d+', title)
-                    cal_data.append({
-                        "name": ev_name, 
-                        "act": nums[-1]+"%" if nums else "TBD", 
-                        "exp": nums[0]+"%" if len(nums)>1 else "--", 
-                        "col": "#ff4b4b" if any(x in ev_name for x in ["FED", "CPI", "NFP"]) else "#ffb000"
-                    })
+                    cal_data.append({"name": ev_name, "act": nums[-1]+"%" if nums else "TBD", "exp": nums[0]+"%" if len(nums)>1 else "--", "col": "#ff4b4b" if "FED" in ev_name or "CPI" in ev_name else "#ffb000"})
 
-        # 5. TRADES MANAGEMENT
+        # 5. TRADES
         active_trades = []
         for trade in st.session_state.trades:
             if trade['type'] == "LONG":
@@ -104,7 +103,7 @@ def sync_terminal():
             st.session_state.last_m5_ts = curr_m5
 
         # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V84 WEEKLY CALENDAR | M5 TRIGGER</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V85 ZERO-FLICKER | WEEKLY CALENDAR</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -162,10 +161,9 @@ def sync_terminal():
             st.metric("VIX INDEX", f"{vix:.2f}")
             st.markdown("<div class='macro-note'>Safe Haven si VIX > 20.</div>", unsafe_allow_html=True)
             
-            # --- CALENDAR HEBDOMADAIRE RESTAURÉ ---
             st.markdown("<p class='label'>● WEEKLY ECONOMIC CALENDAR</p>", unsafe_allow_html=True)
             st.markdown("<div class='kz-card' style='padding:8px;'><div class='cal-header'><span class='cal-col-ev'>EVENT (WEEK)</span><span class='cal-col-val'>ACT</span><span class='cal-col-val'>EXP</span></div>" + 
-                "".join([f"<div class='cal-row'><span class='cal-col-ev'><span style='color:{ev['col']};'>●</span> {ev['name']}</span><span class='cal-col-val' style='color:#00ff88;'>{ev['act']}</span><span class='cal-col-val' style='color:#555;'>{ev['exp']}</span></div>" for ev in cal_data[:5]]) + "</div>", unsafe_allow_html=True)
+                "".join([f"<div class='cal-row'><span class='cal-col-ev'>● {ev['name']}</span><span class='cal-col-val' style='color:#00ff88;'>{ev['act']}</span><span class='cal-col-val' style='color:#555;'>{ev['exp']}</span></div>" for ev in cal_data[:5]]) + "</div>", unsafe_allow_html=True)
 
         st.markdown(f"<div style='background:{sig_col}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {sig_label} | {bull_score:.1f}%</div>", unsafe_allow_html=True)
 
