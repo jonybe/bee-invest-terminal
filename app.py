@@ -18,7 +18,6 @@ st.markdown("""
     .val-quant { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: bold; color: #00ff88; }
     .matrix-row { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 15, 15, 0.8); border: 1px solid #1a1a1a; margin-bottom: 5px; padding: 12px 18px; border-radius: 4px; }
     .m-id { color: #ffb000; font-family: 'JetBrains Mono'; font-weight: 900; width: 45px; font-size: 14px; }
-    .m-cap-real { color: #fff; font-weight: bold; font-size: 13.5px; }
     .bar-container { background: #1a1a1a; height: 6px; border-radius: 3px; margin: 4px 0 10px 0; overflow: hidden; display: flex; }
     .p-bull { background: #00ff88; height: 100%; transition: 0.5s; }
     .p-bear { background: #ff4b4b; height: 100%; transition: 0.5s; }
@@ -59,62 +58,57 @@ if data:
     cap, risk_pct = 959.56, 0.06
     sl_dyn = max(vol_atr * 0.5, 15.0)
     
-    # Calculs Financiers de la position
     perte_gbp = cap * risk_pct
     lot = perte_gbp / (sl_dyn * 10)
-    gain_gbp_tp1 = perte_gbp  # Ratio 1:1
-    gain_gbp_tp2 = perte_gbp * 2  # Ratio 1:2
     
     drag = (dxy - 100) + (yields * 5)
     bull_score = min(max((geo + cb + etf) - drag, 10), 100)
     can_buy, can_sell = bull_score > 58, bull_score < 42
-    p_rest, prog = math.log(1000000 / cap) / math.log(2), (math.log(cap/100) / math.log(1000000/100)) * 100
 
     # Header
-    st.markdown(f"<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V47 PROJECTION UNIT | LIVE</small></div><div class='val-quant'>{gold:,.2f} $</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V48 TOTAL COCKPIT | LIVE</small></div><div class='val-quant'>{gold:,.2f} $</div></div>", unsafe_allow_html=True)
     st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
     col_main, col_side = st.columns([2, 1])
 
     with col_main:
-        st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>Doublements : <b>{p_rest:.1f}</b></span><span style='color:#ffb000;'>PROG: {prog:.2f}%</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
-        st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42%. RISQUE FIXE 6%.</div>""", unsafe_allow_html=True)
+        # ROADMAP & LEGENDE
+        prog = (math.log(cap/100) / math.log(1000000/100)) * 100
+        st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
+        st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
 
-        # CHART H2
-        st.markdown("<p class='label'>● ANALYSE H2 & MARKET PROFILE</p>", unsafe_allow_html=True)
+        # CHART
         fig = go.Figure(data=[go.Candlestick(x=df_h2.index, open=df_h2['Open'], high=df_h2['High'], low=df_h2['Low'], close=df_h2['Close'], name="H2")])
         fig.add_hline(y=ph, line_dash="dash", line_color="#ff4b4b", annotation_text="P-HIGH")
         fig.add_hline(y=pl, line_dash="dash", line_color="#00ff88", annotation_text="P-LOW")
         fig.add_hline(y=poc, line_color="#ffb000", line_width=2, annotation_text="POC")
-        fig.add_hrect(y0=val, y1=vah, fillcolor="white", opacity=0.05, line_width=0)
-        fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=380, margin=dict(l=0,r=0,t=0,b=0), showlegend=False, xaxis_rangeslider_visible=False)
+        fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=350, margin=dict(l=0,r=0,t=0,b=0), showlegend=False, xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-        # NOUVEAU : PROJECTION GAINS/PERTES
-        st.markdown("<p class='label'>● PROJECTION FINANCIÈRE DE LA POSITION (GBP)</p>", unsafe_allow_html=True)
-        c_p1, c_p2, c_p3 = st.columns(3)
-        with c_p1:
-            st.markdown(f"""<div class='kz-card' style='border-left:3px solid #ff4b4b; text-align:center;'><small class='label' style='color:#ff4b4b;'>RISQUE MAX (SL)</small><br><span style='font-size:22px; font-weight:bold; color:#ff4b4b;'>- {perte_gbp:.2f} £</span></div>""", unsafe_allow_html=True)
-        with c_p2:
-            st.markdown(f"""<div class='kz-card' style='border-left:3px solid #00ff88; text-align:center;'><small class='label' style='color:#00ff88;'>GAIN TP1 (RR 1:1)</small><br><span style='font-size:22px; font-weight:bold; color:#00ff88;'>+ {gain_gbp_tp1:.2f} £</span></div>""", unsafe_allow_html=True)
-        with c_p3:
-            st.markdown(f"""<div class='kz-card' style='border-left:3px solid #00ff88; text-align:center;'><small class='label' style='color:#00ff88;'>GAIN TP2 (RR 1:2)</small><br><span style='font-size:22px; font-weight:bold; color:#00ff88;'>+ {gain_gbp_tp2:.2f} £</span></div>""", unsafe_allow_html=True)
+        # RESTAURATION : TARGETS & PROJECTION
+        st.markdown("<p class='label'>● PARAMÈTRES D'EXÉCUTION & PROJECTION</p>", unsafe_allow_html=True)
+        c_t1, c_t2 = st.columns(2)
+        with c_t1:
+            st.markdown(f"""<div class='kz-card' style='font-size:12px; border-left:3px solid #ffb000;'>
+                <small class='label'>NIVEAUX DE PRIX (XAU/USD)</small><br>
+                🟢 <b>TP (1:2) :</b> {gold + (sl_dyn * 2):,.2f} $<br>
+                ⚪ <b>IN (ENTRY) :</b> {gold:,.2f} $<br>
+                🔴 <b>SL (EXIT) :</b> {gold - sl_dyn:,.2f} $
+            </div>""", unsafe_allow_html=True)
+        with c_t2:
+            st.markdown(f"""<div class='kz-card' style='font-size:12px; border-left:3px solid #00ff88;'>
+                <small class='label'>PROJECTION FINANCIÈRE (GBP)</small><br>
+                💰 <b>GAIN ESTIMÉ :</b> +{perte_gbp * 2:.2f} £<br>
+                ⚠️ <b>RISQUE MAX :</b> -{perte_gbp:.2f} £<br>
+                📊 <b>LOT CONSEILLÉ :</b> {lot:.2f}
+            </div>""", unsafe_allow_html=True)
 
-        # EXECUTION
-        st.markdown(f"<div class='kz-card' style='text-align:center; border-left:3px solid #00ff88;'><small class='label'>LOT À SAISIR (MT4/MT5)</small><br><span style='font-size:36px; font-weight:900; color:#00ff88;'>{lot:.2f}</span><br><b>{'CONFLUENCE OK' if can_buy or can_sell else 'ATTENTE'}</b></div>", unsafe_allow_html=True)
-
-        # MATRIX
-        st.markdown("<p class='label'>● MATRIX ROADMAP</p>", unsafe_allow_html=True)
-        tp, tr = cap, cap
-        now = datetime.now()
-        for i in range(1, 6):
-            tp *= 2
-            ret = (tr * 0.1) if tr > 5000 else 0
-            tr = (tr * 2) - ret
-            st.markdown(f"""<div class="matrix-row"><div class="m-id">P{i:02}</div><div style="width:200px;"><div style="color:#444; font-size:9px; text-decoration:line-through;">Brut: {tp:,.0f} £</div><div class="m-cap-real">{tr:,.0f} £</div></div><div style="color:#00ff88; font-family:'JetBrains Mono';">LOT: {(tr*risk_pct)/(sl_dyn*10):.2f}</div><div style="color:#444; font-size:10px;">🚀 {(now+timedelta(days=i*30)).strftime('%m/%y')}</div></div>""", unsafe_allow_html=True)
+        # VERDICT & LOT
+        st.markdown(f"<div class='kz-card' style='text-align:center; border-top:2px solid {'#00ff88' if can_buy or can_sell else '#ffb000'};'><span style='font-size:42px; font-weight:900; color:{'#00ff88' if can_buy else '#ff4b4b' if can_sell else '#ffb000'};'>{lot:.2f}</span><br><b>{'CONFLUENCE OK' if can_buy or can_sell else 'ATTENTE SIGNAL'}</b></div>", unsafe_allow_html=True)
 
     with col_side:
-        st.markdown("<p class='label'>● BULL SCORE & INSIGHTS</p>", unsafe_allow_html=True)
+        # GOLD INSIGHTS & BULL SCORE
+        st.markdown("<p class='label'>● GOLD INSIGHTS & BULL SCORE</p>", unsafe_allow_html=True)
         st.markdown(f"""<div class='kz-card' style='border-right: 3px solid #ffb000;'><div style='display:flex; justify-content:space-between;'><span style='color:#666;'>ATR :</span><span>{vol_atr:.2f} $</span></div><div style='display:flex; justify-content:space-between;'><span style='color:#666;'>VAR J :</span><span style='color:#00ff88;'>{g_change:+.2f}%</span></div><hr style='border-color:#222;'><div style='display:flex; justify-content:space-between;'><span>BULL SCORE :</span><span style='color:#00ff88; font-weight:bold;'>{bull_score:.1f}%</span></div><div class='bar-container'><div class='p-bull' style='width:{bull_score}%'></div></div></div>""", unsafe_allow_html=True)
 
         st.markdown("<p class='label'>● PRESSURE SENSORS</p>", unsafe_allow_html=True)
