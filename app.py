@@ -4,15 +4,22 @@ import feedparser
 import math
 from datetime import datetime
 
-st.set_page_config(page_title="BEE-INVEST | ROAD TO 1M", layout="wide")
+# 1. Configuration Interface Compacte
+st.set_page_config(page_title="BEE-INVEST | DASHBOARD", layout="wide", initial_sidebar_state="collapsed")
 
+# CSS "Micro-Design" pour tout faire tenir
 st.markdown("""
 <style>
     .stApp { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
-    .kz-card { background: #0d0d0d; border: 1px solid #1a1a1a; padding: 20px; border-radius: 4px; margin-bottom: 15px; }
-    .label { color: #555; font-size: 10px; text-transform: uppercase; font-weight: bold; letter-spacing: 1.5px; }
-    .val-quant { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: bold; color: #00ff88; }
-    .roadmap-box { background: linear-gradient(90deg, #0d0d0d 0%, #1a1a1a 100%); border-left: 4px solid #ffb000; padding: 15px; margin-top: 10px; border-radius: 0 4px 4px 0; }
+    /* Réduction drastique des espaces Streamlit */
+    .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
+    .kz-card { background: #0d0d0d; border: 1px solid #1a1a1a; padding: 10px; border-radius: 4px; margin-bottom: 8px; }
+    .label { color: #555; font-size: 9px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; }
+    .val-quant { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: bold; color: #00ff88; }
+    .roadmap-txt { font-size: 11px; line-height: 1.2; }
+    .stMetric { padding: 0 !important; }
+    [data-testid="stMetricValue"] { font-size: 20px !important; }
+    .news-item { font-size: 11px; border-bottom: 1px solid #111; padding: 4px 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -21,104 +28,80 @@ def get_market_data():
         gold = yf.Ticker("GC=F").fast_info['last_price']
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
-        btc = yf.Ticker("BTC-USD").fast_info['last_price']
         feed = feedparser.parse("https://news.google.com/rss/search?q=or+bourse+forex&hl=fr&gl=FR&ceid=FR:fr")
-        news = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:10]
+        news = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:6] # 6 news max pour le scroll
         
+        # Scores dynamiques
         text_blob = " ".join([n.title.lower() for n in news])
-        geo = 32.50 if any(w in text_blob for w in ['guerre', 'tension', 'iran', 'russie']) else 28.00
-        cb = 21.40 if any(w in text_blob for w in ['fed', 'inflation', 'taux', 'powell']) else 18.00
-        etf = 11.20 if any(w in text_blob for w in ['etf', 'achat', 'physique']) else 9.00
-        
-        return gold, dxy, yields, btc, news, geo, cb, etf
+        geo = 32.50 if any(w in text_blob for w in ['guerre', 'tension', 'iran']) else 28.0
+        cb = 21.40 if any(w in text_blob for w in ['fed', 'taux', 'bce']) else 18.0
+        return gold, dxy, yields, news, geo, cb
     except: return None
 
 data = get_market_data()
-
 if data:
-    gold, dxy, yields, btc, news, geo, cb, etf = data
-    
-    # --- LOGIQUE FINANCIÈRE ---
-    capital_actuel = 959.56
-    objectif = 1000000.00
-    risk_percent = 0.06
-    
-    # Calcul des paliers pour le million (Doublement du capital)
-    paliers_restants = math.log(objectif / capital_actuel) / math.log(2)
-    
-    # Calcul du lot dynamique (Risque 6% sur 150 pips)
-    lot_size = (capital_actuel * risk_percent) / 150
-    
-    # Dominance
-    drag = (dxy - 100) + (yields * 5)
-    dominance = min(max((geo + cb + etf) - drag, 10), 100)
+    gold, dxy, yields, news, geo, cb = data
+    capital = 959.56
+    lot = (capital * 0.06) / 150
+    dominance = min(max((geo + cb + 9.0) - ((dxy - 100) + (yields * 5)), 10), 100)
     can_trade = dominance > 58 and yields < 2.00
 
-    # Header
-    st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center;'><div><h2 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST : MISSION 1M</h2><small style='color:#444;'>SYSTÈME DE CROISSANCE COMPOSÉE EXTRÊME</small></div><div class='val-quant'>{gold:,.2f} $</div></div>", unsafe_allow_html=True)
-    st.markdown("---")
+    # HEADER COMPACT
+    cols = st.columns([2, 1, 1])
+    cols[0].markdown(f"<h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3>", unsafe_allow_html=True)
+    cols[1].markdown(f"<div class='val-quant' style='text-align:center;'>{gold:,.2f} $</div>", unsafe_allow_html=True)
+    cols[2].markdown(f"<div style='text-align:right; font-size:10px; color:#444;'>{datetime.now().strftime('%H:%M:%S')} | LIVE</div>", unsafe_allow_html=True)
 
-    col_main, col_side = st.columns([2, 1])
+    st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
-    with col_main:
-        # ROADMAP DU MILLION
-        st.markdown("<p class='label'>● ROADMAP VERS LE MILLION</p>", unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class='roadmap-box'>
-            <div style='display:flex; justify-content:space-between;'>
-                <span>Paliers de doublement nécessaires : <b>{paliers_restants:.1f}</b></span>
-                <span style='color:#ffb000;'>Progression : {( (math.log(capital_actuel/100) / math.log(objectif/100)) * 100 ):.2f}%</span>
+    # GRILLE PRINCIPALE (4 COLONNES)
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+
+    with c1: # FORCES
+        st.markdown("<p class='label'>● FORCES RÉELLES</p>", unsafe_allow_html=True)
+        for l, v, c in [("GÉO", geo, "#00ff88"), ("BCE", cb, "#58a6ff"), ("ETF", 9.0, "#ffb000")]:
+            st.markdown(f"<div style='border-left:2px solid {c}; padding-left:8px; margin-bottom:10px;'><small class='label'>{l}</small><br><span style='font-size:14px; font-weight:bold;'>+{v:.1f}</span></div>", unsafe_allow_html=True)
+
+    with c2: # EXECUTION
+        st.markdown("<p class='label'>● EXÉCUTION (6%)</p>", unsafe_allow_html=True)
+        st.markdown(f"""<div class='kz-card' style='text-align:center;'>
+            <b style='color:{'#00ff88' if can_trade else '#ffb000'}; font-size:14px;'>{'BUY' if can_trade else 'WAIT'}</b><br>
+            <span style='font-size:32px; font-weight:900; color:#00ff88;'>{lot:.2f}</span><br>
+            <small class='label'>LOT TAILLE</small>
+        </div>""", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:10px; color:#666;'>SL: {gold-15:,.1f} | TP: {gold+30:,.1f}</div>", unsafe_allow_html=True)
+
+    with c3: # ROADMAP
+        st.markdown("<p class='label'>● ROADMAP 1M</p>", unsafe_allow_html=True)
+        paliers = math.log(1000000 / capital) / math.log(2)
+        st.markdown(f"""<div class='kz-card'>
+            <span class='roadmap-txt'>Paliers : <b>{paliers:.1f}</b></span><br>
+            <div style='background:#222; height:6px; border-radius:3px; margin:5px 0;'>
+                <div style='background:#ffb000; height:100%; width:15%; border-radius:3px;'></div>
             </div>
-            <div style='background:#222; height:10px; border-radius:5px; margin-top:10px;'>
-                <div style='background:#ffb000; height:100%; width:{ (math.log(capital_actuel/100) / math.log(objectif/100)) * 100 }%; border-radius:5px;'></div>
-            </div>
-            <p style='font-size:12px; color:#666; margin-top:10px;'>
-                Prochain palier majeur : <b>1,919.12 GBP</b>. Maintenir un risque de 6% par setup validé. 
-                Ne jamais overtrade si la dominance est < 58%.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+            <span class='roadmap-txt' style='color:#666;'>Prochain: 1,919 GBP</span>
+        </div>""", unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # EXÉCUTION
-        c_exec1, c_exec2 = st.columns(2)
-        with c_exec1:
-            st.markdown(f"""<div class='kz-card' style='text-align:center; border-left: 4px solid #00ff88;'>
-                <small class='label'>SIGNAL ACTUEL</small><br>
-                <b style='font-size:20px; color:{'#00ff88' if can_trade else '#ffb000'};'>{'ACHAT VALIDÉ' if can_trade else 'PATIENCE (WAIT)'}</b><br><br>
-                <small class='label'>LOT À EXÉCUTER (6%)</small><br>
-                <span style='font-size:45px; font-weight:900; color:#00ff88;'>{lot_size:.2f}</span>
-            </div>""", unsafe_allow_html=True)
-        with c_exec2:
-            st.markdown(f"""<div class='kz-card' style='text-align:center; border-left: 4px solid #ff4b4b;'>
-                <small class='label'>PALIERS DE PRIX</small><br>
-                <div style='text-align:left; font-size:13px; margin-top:10px;'>
-                    🟢 TP2 : <b>{gold+30:,.2f}</b><br>
-                    🟢 TP1 : <b>{gold+15:,.2f}</b><br>
-                    ⚪ ENTRÉE : <b>{gold:,.2f}</b><br>
-                    🔴 SL : <b>{gold-15:,.2f}</b>
-                </div>
-            </div>""", unsafe_allow_html=True)
+    with c4: # MACRO
+        st.markdown("<p class='label'>● SYNCHRO</p>", unsafe_allow_html=True)
+        st.metric("DXY", f"{dxy:.2f}")
+        st.metric("YIELDS", f"{yields:.2f}%")
 
-    with col_side:
-        st.markdown("<p class='label'>● MÉTRIQUES DE SURVEILLANCE</p>", unsafe_allow_html=True)
-        st.metric("DOMINANCE OR", f"{dominance:.1f}%")
-        st.metric("DXY BROAD", f"{dxy:.2f}")
-        st.metric("REAL YIELDS", f"{yields:.2f}%")
-        
-        st.markdown("<br><p class='label'>● FORCES DE SOUTIEN RÉELLES</p>", unsafe_allow_html=True)
-        st.markdown(f"🌍 Géo : **+{geo:.2f}**")
-        st.markdown(f"🏛️ BCE : **+{cb:.2f}**")
-        st.markdown(f"💰 ETF : **+{etf:.2f}**")
+    # NEWS & DOMINANCE (PIED DE PAGE)
+    st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
+    
+    cb1, cb2 = st.columns([1, 2])
+    with cb1:
+        st.markdown(f"<p class='label'>● DOMINANCE : {dominance:.1f}%</p>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#111; height:15px; border-radius:3px;'><div style='background:#00ff88; height:100%; width:{dominance}%; border-radius:3px;'></div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:{'#00ff88' if can_trade else '#ffb000'}; color:black; text-align:center; font-weight:bold; font-size:12px; margin-top:10px; border-radius:2px;'>VERDICT EN DIRECT</div>", unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.markdown("<p class='label'>● DERNIÈRES DÉPÊCHES ANALYSÉES</p>", unsafe_allow_html=True)
-    for n in news[:4]:
-        with st.expander(f"🕒 {n.published[5:16]} | {n.title}"):
-            st.write(n.summary if 'summary' in n else "Analyse en cours...")
-            st.markdown(f"[Lien Source]({n.link})")
+    with cb2:
+        st.markdown("<p class='label'>● NEWS FIL (DERNIÈRES 5)</p>", unsafe_allow_html=True)
+        for n in news[:5]:
+            st.markdown(f"<div class='news-item'>• {n.title[:75]}...</div>", unsafe_allow_html=True)
 
+# Rafraîchissement 2s
 import time
 time.sleep(2)
 st.rerun()
