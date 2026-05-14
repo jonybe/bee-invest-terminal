@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V73 LOCKED)
+# 1. Configuration & Design System (V74 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -43,8 +43,8 @@ def sync_terminal():
         df_m15 = t.history(period="2d", interval="15m").dropna()
         m15_imp = ((gold - df_m15['Close'].iloc[-2]) / df_m15['Close'].iloc[-2]) * 100
         
-        # Volume Profile Data
-        vp_data = df_m15.tail(96)
+        # Volume Profile Data Clean
+        vp_data = df_m15.tail(96).copy()
         ph, pl = vp_data['High'].max(), vp_data['Low'].min()
         price_bins = pd.cut(vp_data['Close'], bins=25)
         bin_volumes = vp_data.groupby(price_bins, observed=True)['Volume'].sum()
@@ -52,132 +52,102 @@ def sync_terminal():
         std_dev = vp_data['Close'].std()
         vah, val = poc + (std_dev * 1.28), poc - (std_dev * 1.28)
 
-        # Macro Metrics
+        # Macro Data
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
         vix = yf.Ticker("^VIX").fast_info['last_price']
         
-        # Fund Scoring
-        feed = feedparser.parse("https://news.google.com/rss/search?q=XAU+Gold+Forex+PPI+CPI+PMI+FED&hl=en")
+        # Fundamentals
+        feed = feedparser.parse("https://news.google.com/rss/search?q=XAU+Gold+PPI+CPI+FED&hl=en")
         text_full = " ".join([n.title.lower() for n in feed.entries])
         geo, cb, etf = (32.5, 21.4, 11.2) if any(x in text_full for x in ["war", "conflict", "tension"]) else (28.0, 18.0, 9.5)
         fund_sent = ((geo + cb + etf) / 65.1) * 100
         
-        # Calendar Parsing
-        cal_events = []
-        for n in feed.entries[:20]:
+        # Calendar Clean
+        unique_cal = []
+        for n in feed.entries[:15]:
             title = n.title.upper()
             if any(x in title for x in ["PPI", "CPI", "PMI", "FED", "NFP"]):
-                impact = "HIGH" if any(x in title for x in ["FED", "NFP", "CPI"]) else "MED"
-                nums = re.findall(r'\d+\.\d+', title)
-                cal_events.append({"name": next((x for x in ["PPI", "CPI", "PMI", "FED", "NFP"] if x in title), "DATA"), 
-                                   "impact": impact, "col": "#ff4b4b" if impact == "HIGH" else "#ffb000",
-                                   "act": nums[-1]+"%" if nums and float(nums[-1]) < 20 else "--", "exp": nums[0]+"%" if len(nums)>1 else "--"})
-        seen = set()
-        unique_cal = [x for x in cal_events if not (x['name'] in seen or seen.add(x['name']))]
+                name = next((x for x in ["PPI", "CPI", "PMI", "FED", "NFP"] if x in title), "DATA")
+                if not any(d['name'] == name for d in unique_cal):
+                    nums = re.findall(r'\d+\.\d+', title)
+                    unique_cal.append({"name": name, "act": nums[-1]+"%" if nums else "--", "exp": nums[0]+"%" if len(nums)>1 else "--", "col": "#ff4b4b" if "FED" in name or "CPI" in name else "#ffb000"})
 
         # Account Financials
-        cap = 960.23 
+        cap = 960.23
         hist = t.history(period="5d")
         vol_atr = (hist['High'] - hist['Low']).mean()
         sl_dyn = max(vol_atr * 0.5, 15.0)
         perte_gbp = cap * 0.06
         lot = perte_gbp / (sl_dyn * 10)
 
-        # Verdict Engine
+        # Verdict
         h4_p = min(max(50 + ((gold - df_m15['Close'].mean())/2), 10), 90)
         drag = (dxy - 100) + (yields * 5) + (vix * 0.5)
         bull_score = min(max((geo + cb + etf) - drag + (m15_imp * 35), 10), 100)
         status_text = "NEUTRAL" if 42 <= bull_score <= 58 else "BULLISH" if bull_score > 58 else "BEARISH"
         status_color = "#ffb000" if status_text == "NEUTRAL" else "#00ff88" if status_text == "BULLISH" else "#ff4b4b"
 
-        # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V73 VOLUME ENGINE | M15 CHART</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+        # --- RENDER ---
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V74 RECOVERY ENGINE | M15 CHART</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
-        col_main, col_side = st.columns([2, 1])
-
-        with col_main:
-            # Roadmap
+        c1, c2 = st.columns([2, 1])
+        with c1:
             prog = (math.log(cap/100) / math.log(1000000/100)) * 100
             st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
             st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
 
-            # --- CHART M15 + VOLUME ---
+            # Fix Chart Rendering
             fig = make_subplots(specs=[[{"secondary_y": True}]])
-            
-            # Candlesticks
             fig.add_trace(go.Candlestick(x=df_m15.index, open=df_m15['Open'], high=df_m15['High'], low=df_m15['Low'], close=df_m15['Close'], name="M15"), secondary_y=False)
-            
-            # Volume Bars (Overlay)
-            fig.add_trace(go.Bar(x=df_m15.index, y=df_m15['Volume'], name="Volume", marker_color='rgba(100, 100, 100, 0.2)', borderwidth=0), secondary_y=True)
-            
-            # Profile Lines
-            fig.add_hline(y=poc, line_color="#ffb000", line_width=2.5)
+            fig.add_trace(go.Bar(x=df_m15.index, y=df_m15['Volume'], name="Vol", marker_color='rgba(150, 150, 150, 0.15)'), secondary_y=True)
+            fig.add_hline(y=poc, line_color="#ffb000", line_width=2)
             fig.add_hrect(y0=val, y1=vah, fillcolor="rgba(255, 255, 255, 0.05)", line_width=0)
-            
             fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=320, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False, showlegend=False)
-            fig.update_yaxes(visible=False, secondary_y=True) # Cache l'axe du volume pour garder le graph propre
+            fig.update_yaxes(visible=False, secondary_y=True)
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-            # Targets
             st.markdown("<p class='label'>● PARAMÈTRES & PROJECTION</p>", unsafe_allow_html=True)
-            t_col1, t_col2 = st.columns(2)
-            t_col1.markdown(f"<div class='kz-card' style='font-size:11px; border-left:3px solid #ffb000;'>🟢 <b>TP:</b> {gold+25:,.2f}<br>⚪ <b>IN:</b> {gold:,.2f}<br>🔴 <b>SL:</b> {gold-12:,.2f}</div>", unsafe_allow_html=True)
-            t_col2.markdown(f"<div class='kz-card' style='font-size:11px; border-left:3px solid #00ff88;'>💰 <b>GAIN:</b> +{perte_gbp*2:.2f} £<br>⚠️ <b>RISQUE:</b> -{perte_gbp:.2f} £<br>📊 <b>LOT:</b> {lot:.2f}</div>", unsafe_allow_html=True)
+            t1, t2 = st.columns(2)
+            t1.markdown(f"<div class='kz-card' style='font-size:11px; border-left:3px solid #ffb000;'>🟢 <b>TP:</b> {gold+25:,.2f}<br>⚪ <b>IN:</b> {gold:,.2f}<br>🔴 <b>SL:</b> {gold-12:,.2f}</div>", unsafe_allow_html=True)
+            t2.markdown(f"<div class='kz-card' style='font-size:11px; border-left:3px solid #00ff88;'>💰 <b>GAIN:</b> +{perte_gbp*2:.2f} £<br>⚠️ <b>RISQUE:</b> -{perte_gbp:.2f} £<br>📊 <b>LOT:</b> {lot:.2f}</div>", unsafe_allow_html=True)
 
-            # Matrix Roadmap
             st.markdown("<p class='label'>● MATRIX ROADMAP</p>", unsafe_allow_html=True)
-            tr = cap
+            tr_m = cap
             for i in range(1, 6):
-                ret = (tr * 0.1) if tr > 5000 else 0
-                tr = (tr * 2) - ret
+                ret = (tr_m * 0.1) if tr_m > 5000 else 0
+                tr_m = (tr_m * 2) - ret
                 badge = f"<div class='m-badge-blue'>SORTIE: {ret:,.0f}£</div>" if ret > 0 else f"<div class='m-badge-red'>ACCUMULATION</div>"
-                st.markdown(f"""<div class="matrix-row"><div class="m-id">P{i:02}</div><div style="width:180px;"><div style="color:white; font-weight:bold; font-size:13px;">{tr:,.0f} £</div></div><div style="color:#00ff88; font-weight:bold; width:80px;">LOT: {(tr*0.06)/150:.2f}</div>{badge}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="matrix-row"><div class="m-id">P{i:02}</div><div style="width:180px;"><div style="color:white; font-weight:bold; font-size:13px;">{tr_m:,.0f} £</div></div><div style="color:#00ff88; font-weight:bold; width:80px;">LOT: {(tr_m*0.06)/150:.2f}</div>{badge}</div>""", unsafe_allow_html=True)
 
-        with col_side:
-            # Dominance & Impulse
+        with c2:
             st.markdown("<p class='label'>● BULL VS BEAR DOMINANCE</p>", unsafe_allow_html=True)
             st.markdown(f"""<div class='kz-card'><div style='display:flex; justify-content:space-between;'><small>IMPULSE M15</small><small style='color:{status_color}; font-weight:bold;'>{m15_imp:+.3f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{bull_score}%'></div></div></div>""", unsafe_allow_html=True)
             
-            # Pressure Sensors
-            st.markdown("<p class='label'>● PRESSURE SENSORS (RAW VALUES)</p>", unsafe_allow_html=True)
+            st.markdown("<p class='label'>● PRESSURE SENSORS</p>", unsafe_allow_html=True)
             for ut, pr in [("H4 TREND", h4_p), ("H2 FLOW", h4_p-5), ("M15 MOMENTUM", h4_p+(m15_imp*35))]:
                 st.markdown(f"<div style='display:flex; justify-content:space-between;'><small>{ut}</small><small style='color:#00ff88; font-weight:bold;'>{pr:.1f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{pr}%'></div></div>", unsafe_allow_html=True)
             
-            # Fundamentals
             st.markdown("<p class='label'>● FUNDAMENTAL SCORES</p>", unsafe_allow_html=True)
-            st.markdown(f"""
-            <div class='kz-card'>
-                <div style='display:grid; grid-template-columns: 1fr 1fr 1fr; text-align:center; margin-bottom:5px;'>
-                    <div><small class='label'>GEO</small><br><b style='color:#ffb000;'>{geo}</b></div>
-                    <div><small class='label'>FED</small><br><b style='color:#ffb000;'>{cb}</b></div>
-                    <div><small class='label'>ETF</small><br><b style='color:#ffb000;'>{etf}</b></div>
-                </div>
-                <div style='display:flex; justify-content:space-between;'><small>FUNDAMENTAL SENTIMENT</small><small style='color:#00ff88;'>{fund_sent:.1f}%</small></div>
-                <div class='bar-container'><div class='p-bull' style='width:{fund_sent}%'></div></div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class='kz-card'><div style='display:grid; grid-template-columns: 1fr 1fr 1fr; text-align:center; margin-bottom:5px;'><div><small class='label'>GEO</small><br><b style='color:#ffb000;'>{geo}</b></div><div><small class='label'>FED</small><br><b style='color:#ffb000;'>{cb}</b></div><div><small class='label'>ETF</small><br><b style='color:#ffb000;'>{etf}</b></div></div><div style='display:flex; justify-content:space-between;'><small>SENTIMENT</small><small style='color:#00ff88;'>{fund_sent:.1f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{fund_sent}%'></div></div></div>""", unsafe_allow_html=True)
 
-            # Macro Analysts
-            st.markdown("<p class='label'>● MACRO ANALYSIS (CORRELATION)</p>", unsafe_allow_html=True)
             st.metric("DXY INDEX", f"{dxy:.2f}")
-            st.markdown(f"<div class='macro-note'>Vendre Gold si DXY > 102.50. Chute = Bullish Gold.</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='macro-note'>Vendre Gold si DXY > 102.50.</div>", unsafe_allow_html=True)
             st.metric("REAL YIELDS", f"{yields:.2f}%")
-            st.markdown(f"<div class='macro-note'>Coût d'opportunité haut si Yields ↑. Bullish Gold si < 4.0%.</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='macro-note'>Bullish Gold si Yields < 4.0%.</div>", unsafe_allow_html=True)
             st.metric("VIX INDEX", f"{vix:.2f}")
-            st.markdown(f"<div class='macro-note'>Safe Haven demand si VIX > 20. Panique = Achat Gold.</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='macro-note'>Safe Haven si VIX > 20.</div>", unsafe_allow_html=True)
             
-            # Calendar
-            st.markdown("<p class='label'>● ECONOMIC CALENDAR (LIVE)</p>", unsafe_allow_html=True)
+            st.markdown("<p class='label'>● ECONOMIC CALENDAR</p>", unsafe_allow_html=True)
             st.markdown("<div class='kz-card' style='padding:8px;'><div class='cal-header'><span>EVENT</span><span>ACT</span><span>EXP</span></div>", unsafe_allow_html=True)
             for ev in unique_cal[:4]:
-                st.markdown(f"<div class='cal-row'><span style='width: 80px;'><span class='impact-dot' style='background:{ev['col']};'></span>{ev['name']}</span><span class='cal-val' style='color:#00ff88;'>{ev['act']}</span><span class='cal-val' style='color:#555;'>{ev['exp']}</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='cal-row'><span><span class='impact-dot' style='background:{ev['col']};'></span>{ev['name']}</span><span class='cal-val' style='color:#00ff88;'>{ev['act']}</span><span class='cal-val' style='color:#555;'>{ev['exp']}</span></div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown(f"<div style='background:{status_color}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {status_text}</div>", unsafe_allow_html=True)
 
-    except:
-        st.warning("Re-sync...")
+    except Exception:
+        st.warning("Système en cours de synchronisation...")
 
 sync_terminal()
