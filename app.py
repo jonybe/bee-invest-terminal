@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V69 LOCKED)
+# 1. Configuration & Design System (V70 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -60,8 +60,10 @@ def sync_terminal():
         news_list = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:4]
         text_full = " ".join([n.title.lower() for n in feed.entries])
         
-        # GEO / FED (CB) / ETF Logic
+        # GEO / FED / ETF Logic
         geo, cb, etf = (32.5, 21.4, 11.2) if any(x in text_full for x in ["war", "conflict", "tension", "geopolitic"]) else (28.0, 18.0, 9.5)
+        # Calcul du sentiment fondamental (Normalisé sur un max de 65.1)
+        fund_sent = ((geo + cb + etf) / 65.1) * 100
         
         # Calendar
         cal_events = []
@@ -77,7 +79,7 @@ def sync_terminal():
         seen = set()
         unique_cal = [x for x in cal_events if not (x['name'] in seen or seen.add(x['name']))]
 
-        # Sensors & Score
+        # Score & Verdict
         h4_p = min(max(50 + ((gold - df_m15['Close'].mean())/2), 10), 90)
         drag = (dxy - 100) + (yields * 5) + (vix * 0.5)
         bull_score = min(max((geo + cb + etf) - drag + (m15_imp * 35), 10), 100)
@@ -85,7 +87,7 @@ def sync_terminal():
         status_color = "#ffb000" if status_text == "NEUTRAL" else "#00ff88" if status_text == "BULLISH" else "#ff4b4b"
 
         # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V69 DATA RAW | M15 ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V70 FUND SENTIMENT | M15 ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -103,7 +105,7 @@ def sync_terminal():
             fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=320, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-            # Targets
+            # Projections
             st.markdown("<p class='label'>● PARAMÈTRES & PROJECTION</p>", unsafe_allow_html=True)
             t_col1, t_col2 = st.columns(2)
             t_col1.markdown(f"<div class='kz-card' style='font-size:11px; border-left:3px solid #ffb000;'>🟢 <b>TP:</b> {gold+25:,.2f}<br>⚪ <b>IN:</b> {gold:,.2f}<br>🔴 <b>SL:</b> {gold-12:,.2f}</div>", unsafe_allow_html=True)
@@ -123,18 +125,22 @@ def sync_terminal():
             st.markdown("<p class='label'>● BULL VS BEAR DOMINANCE</p>", unsafe_allow_html=True)
             st.markdown(f"""<div class='kz-card'><div style='display:flex; justify-content:space-between;'><small>IMPULSE M15</small><small style='color:{status_color}; font-weight:bold;'>{m15_imp:+.3f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{bull_score}%'></div></div></div>""", unsafe_allow_html=True)
             
-            # --- CAPTEURS DE PRESSION + RESULTATS ---
+            # Sensors
             st.markdown("<p class='label'>● PRESSURE SENSORS (RAW VALUES)</p>", unsafe_allow_html=True)
             for ut, pr in [("H4 TREND", h4_p), ("H2 FLOW", h4_p-5), ("M15 MOMENTUM", h4_p+(m15_imp*35))]:
                 st.markdown(f"<div style='display:flex; justify-content:space-between;'><small>{ut}</small><small style='color:#00ff88; font-weight:bold;'>{pr:.1f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{pr}%'></div></div>", unsafe_allow_html=True)
             
-            # --- BLOC GEO / FED / ETF ---
+            # Fundamental Scores + BARRE DE PRESSION SENTIMENT
             st.markdown("<p class='label'>● FUNDAMENTAL SCORES (WEIGHT)</p>", unsafe_allow_html=True)
             st.markdown(f"""
-            <div class='kz-card' style='display:grid; grid-template-columns: 1fr 1fr 1fr; text-align:center;'>
-                <div><small class='label'>GEO</small><br><b style='color:#ffb000;'>{geo}</b></div>
-                <div><small class='label'>FED</small><br><b style='color:#ffb000;'>{cb}</b></div>
-                <div><small class='label'>ETF</small><br><b style='color:#ffb000;'>{etf}</b></div>
+            <div class='kz-card'>
+                <div style='display:grid; grid-template-columns: 1fr 1fr 1fr; text-align:center; margin-bottom:5px;'>
+                    <div><small class='label'>GEO</small><br><b style='color:#ffb000;'>{geo}</b></div>
+                    <div><small class='label'>FED</small><br><b style='color:#ffb000;'>{cb}</b></div>
+                    <div><small class='label'>ETF</small><br><b style='color:#ffb000;'>{etf}</b></div>
+                </div>
+                <div style='display:flex; justify-content:space-between;'><small>FUNDAMENTAL SENTIMENT</small><small style='color:#00ff88;'>{fund_sent:.1f}%</small></div>
+                <div class='bar-container'><div class='p-bull' style='width:{fund_sent}%'></div></div>
             </div>
             """, unsafe_allow_html=True)
 
