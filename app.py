@@ -5,7 +5,7 @@ import math
 import pandas as pd
 from datetime import datetime, timedelta
 
-# 1. Configuration & Design System
+# 1. Configuration & Design System (V44)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -42,7 +42,15 @@ st.markdown("""
         color: #ff4b4b; border: 1px solid rgba(255, 75, 75, 0.2); width: 110px; text-align: center;
     }
     .m-badge-safe { color: #58a6ff; border-color: #58a6ff; background: rgba(88, 166, 255, 0.1); }
-    .legende { font-size: 9px; color: #666; line-height: 1.4; padding: 10px; background: #080808; border-radius: 4px; border: 1px dashed #222; margin-top: 10px; }
+    
+    /* LEGENDE CENTRALE AGRANDIE */
+    .legende-centrale { 
+        font-size: 11px; color: #888; line-height: 1.6; padding: 15px; 
+        background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%); 
+        border-radius: 4px; border: 1px solid #1a1a1a; border-left: 4px solid #ffb000;
+        margin: 15px 0; 
+    }
+    .roadmap-box { background: linear-gradient(90deg, #0d0d0d 0%, #1a1a1a 100%); border-left: 3px solid #ffb000; padding: 8px; margin-top: 5px; border-radius: 0 4px 4px 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -63,15 +71,12 @@ def get_market_data():
         change = ((gold - hist['Close'].iloc[-1]) / hist['Close'].iloc[-1]) * 100
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
-        
         feed = feedparser.parse("https://news.google.com/rss/search?q=gold+market+forex&hl=en&gl=US&ceid=US:en")
         news = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:4]
         text_blob = " ".join([n.title.lower() for n in news])
-        
-        geo = 32.50 if any(w in text_blob for w in ['war', 'conflict', 'tension', 'iran', 'russia']) else 28.0
-        cb = 21.40 if any(w in text_blob for w in ['fed', 'inflation', 'rates', 'hike', 'powell']) else 18.0
-        etf = 11.20 if any(w in text_blob for w in ['etf', 'inflow', 'holdings', 'demand']) else 9.0
-        
+        geo = 32.50 if any(w in text_blob for w in ['war', 'conflict', 'tension', 'iran']) else 28.0
+        cb = 21.40 if any(w in text_blob for w in ['fed', 'inflation', 'powell']) else 18.0
+        etf = 11.20 if any(w in text_blob for w in ['etf', 'demand']) else 9.0
         h4, h2, m15 = get_flow_data("GC=F")
         return gold, dxy, yields, news, vol_atr, h4, h2, m15, change, geo, cb, etf
     except: return None
@@ -84,34 +89,40 @@ if data:
     sl_dyn = max(vol_atr * 0.5, 15.0) 
     perte_gbp = cap * risk_pct
     lot = perte_gbp / (sl_dyn * 10)
-    
-    # CALCUL DE FORCE NET (BULL SCORE)
     drag = (dxy - 100) + (yields * 5)
     bull_score = min(max((geo + cb + etf) - drag, 10), 100)
-    
-    # LOGIQUE D'AUTORISATION
-    # ACHAT : Bull Score > 58% ET Momentum M15 > 50%
-    # VENTE : Bull Score < 42% ET Momentum M15 < 50%
     can_buy = bull_score > 58 and m15_p > 50
     can_sell = bull_score < 42 and m15_p < 50
-    
     p_rest, prog = math.log(1000000 / cap) / math.log(2), (math.log(cap/100) / math.log(1000000/100)) * 100
 
     # Header
-    st.markdown(f"<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V43 TACTICAL INTELLIGENCE | RISK: {perte_gbp:.2f} £</small></div><div class='val-quant'>{gold:,.2f} $</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V44 CENTRAL INTELLIGENCE | RISK: {perte_gbp:.2f} £</small></div><div class='val-quant'>{gold:,.2f} $</div></div>", unsafe_allow_html=True)
     st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
     col_main, col_side = st.columns([2, 1])
 
     with col_main:
+        # ROADMAP
         st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>Doublements : <b>{p_rest:.1f}</b></span><span style='color:#ffb000;'>PROG: {prog:.2f}%</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
 
+        # LÉGENDE TACTIQUE CENTRALE (DÉPLACÉE ET AGRANDIE)
+        st.markdown(f"""
+        <div class="legende-centrale">
+            <b style="color:#ffb000; font-size:12px;">⚖️ PROTOCOLE D'EXÉCUTION TACTIQUE</b><br>
+            • 🟢 <b style="color:#00ff88;">ACHAT (Score > 58%) :</b> Convergence Macro favorable (DXY faible / ETF forts). Exécution validée si le Momentum M15 est en zone Bull.<br>
+            • 🔴 <b style="color:#ff4b4b;">VENTE (Score < 42%) :</b> Dominance monétaire (DXY fort / Yields hauts). Exécution validée si le Momentum M15 est en zone Bear.<br>
+            • ⏳ <b style="color:#aaa;">NEUTRE (42% - 58%) :</b> Absence de directionnelle claire. Risque de latéralisation. Abstention recommandée.
+        </div>
+        """, unsafe_allow_html=True)
+
+        # EXECUTION
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f"<div class='kz-card' style='text-align:center; border-left:3px solid #00ff88;'><small class='label'>LOT ACTUEL ATR</small><br><span style='font-size:36px; font-weight:900; color:#00ff88;'>{lot:.2f}</span><br><b style='color:{'#00ff88' if can_buy else '#ff4b4b' if can_sell else '#ffb000'};'>{'ACHAT VALIDÉ' if can_buy else 'VENTE VALIDÉE' if can_sell else 'ATTENTE CONFLUENCE'}</b></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='kz-card' style='text-align:center; border-left:3px solid #00ff88;'><small class='label'>LOT ACTUEL ATR</small><br><span style='font-size:36px; font-weight:900; color:{'#00ff88' if can_buy else '#ff4b4b' if can_sell else '#ffb000'};'>{lot:.2f}</span><br><b style='color:{'#00ff88' if can_buy else '#ff4b4b' if can_sell else '#ffb000'};'>{'ACHAT VALIDÉ' if can_buy else 'VENTE VALIDÉE' if can_sell else 'ATTENTE CONFLUENCE'}</b></div>", unsafe_allow_html=True)
         with c2:
             st.markdown(f"<div class='kz-card' style='font-size:11px;'><small class='label'>NIVEAUX TECHNIQUES</small><br>🟢 TP : {gold+sl_dyn*2:,.1f}<br>⚪ IN : {gold:,.1f}<br>🔴 SL : {gold-sl_dyn:,.1f}</div>", unsafe_allow_html=True)
 
+        # MATRIX ROADMAP
         st.markdown("<p class='label'>● PLAN DE CAPITALISATION DÉTAILLÉ (SOLDE RÉEL)</p>", unsafe_allow_html=True)
         t_cap_pure, t_cap_real = cap, cap
         now = datetime.now()
@@ -147,20 +158,14 @@ if data:
 
         st.metric("DXY INDEX", f"{dxy:.2f}")
         st.metric("REAL YIELDS", f"{yields:.2f}%")
+        
+        st.markdown("<p class='label'>● NEWS STREAM</p>", unsafe_allow_html=True)
+        for n in news[:3]:
+            st.markdown(f"<div style='font-size:10px; margin-bottom:5px; border-bottom:1px solid #111; padding-bottom:3px;'>🕒 {n.published[5:11]} | {n.title[:50]}...</div>", unsafe_allow_html=True)
 
-    # FOOTER VERDICT + LÉGENDE TACTIQUE
+    # FOOTER VERDICT
     v_color = '#00ff88' if can_buy else '#ff4b4b' if can_sell else '#ffb000'
-    v_text = 'CONFLUENCE ACHAT ✅' if can_buy else 'CONFLUENCE VENTE 🔴' if can_sell else 'ATTENTE CONFLUENCE ⏳'
-    st.markdown(f"<div style='background:{v_color}; color:black; text-align:center; padding:8px; font-weight:900; font-size:13px; border-radius:4px;'>VERDICT FINAL : {v_text}</div>", unsafe_allow_html=True)
-    
-    st.markdown(f"""
-    <div class="legende">
-        <b>⚖️ LÉGENDE DES SIGNAUX :</b><br>
-        • 🟢 <b>ACHAT (>58%) :</b> La macro (Géo+ETF) et la baisse du DXY/Yields créent une pression haussière dominante. Autorisé si M15 est Vert.<br>
-        • 🔴 <b>VENTE (<42%) :</b> Le Dollar et les Yields écrasent l'Or. La macro est défavorable. Autorisé si M15 est Rouge.<br>
-        • ⏳ <b>NEUTRE (42-58%) :</b> Zone de combat ou manque de news majeures. Risque de "choppiness". Attendre une sortie de zone.
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"<div style='background:{v_color}; color:black; text-align:center; padding:10px; font-weight:900; font-size:14px; border-radius:4px;'>VERDICT FINAL : {'ACHAT ✅' if can_buy else 'VENTE 🔴' if can_sell else 'ATTENTE CONFLUENCE ⏳'}</div>", unsafe_allow_html=True)
 
 import time
 time.sleep(2)
