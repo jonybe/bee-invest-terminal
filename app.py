@@ -5,9 +5,9 @@ import math
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import time
+import re
 
-# 1. Configuration & Design System (V62 LOCKED)
+# 1. Configuration & Design System (V63 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -27,7 +27,12 @@ st.markdown("""
     .legende-centrale { font-size: 11px; color: #888; line-height: 1.6; padding: 15px; background: #0a0a0a; border-radius: 4px; border-left: 4px solid #ffb000; margin: 15px 0; }
     .status-tag { padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; }
     .intel-desk-sidebar { background: #080808; border-top: 1px dashed #333; padding: 12px 0; margin-top: 15px; }
-    .cal-event { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #111; font-size: 10px; }
+    
+    /* CALENDAR STYLING */
+    .cal-header { display: flex; justify-content: space-between; color: #444; font-size: 8px; font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #222; padding-bottom: 2px; }
+    .cal-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #111; font-size: 10px; }
+    .cal-val { font-family: 'JetBrains Mono', monospace; font-weight: bold; width: 45px; text-align: right; }
+    .impact-dot { height: 6px; width: 6px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -54,22 +59,29 @@ def sync_terminal():
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
         
-        # News & Calendar Logic
-        feed = feedparser.parse("https://news.google.com/rss/search?q=gold+PPI+PMI+CPI+FED+NFP&hl=en")
-        news = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:4]
-        
-        # Extraction simplifiée du calendrier
+        # Advanced Calendar Extraction
+        feed = feedparser.parse("https://news.google.com/rss/search?q=XAU+Gold+PPI+CPI+PMI+FED+Calendar&hl=en")
         cal_events = []
-        for n in feed.entries[:10]:
+        for n in feed.entries[:15]:
             title = n.title.upper()
-            if any(x in title for x in ["PPI", "CPI", "PMI", "FED", "NFP", "JOBS", "RATE"]):
-                impact = "🔴 HIGH" if any(x in title for x in ["FED", "NFP", "CPI"]) else "🟠 MED"
-                event_name = next((x for x in ["PPI", "CPI", "PMI", "FED", "NFP"] if x in title), "DATA")
-                cal_events.append({"name": event_name, "impact": impact, "col": "#ff4b4b" if "HIGH" in impact else "#ffb000"})
+            if any(x in title for x in ["PPI", "CPI", "PMI", "FED", "NFP", "JOBS", "RATE", "UNEMPLOYMENT"]):
+                # Détection d'impact
+                impact_lvl = "HIGH" if any(x in title for x in ["FED", "NFP", "CPI", "RATE"]) else "MED"
+                col = "#ff4b4b" if impact_lvl == "HIGH" else "#ffb000"
+                
+                # Tentative de parsing de chiffres (regex pour % ou chiffres)
+                nums = re.findall(r'[-+]?\d*\.\d+|\d+', title)
+                actual = nums[-1] + "%" if nums else "--"
+                expect = nums[0] + "%" if len(nums) > 1 else "--"
+                
+                event_name = next((x for x in ["PPI", "CPI", "PMI", "FED", "NFP", "RATE"] if x in title), "DATA")
+                cal_events.append({"name": event_name, "impact": impact_lvl, "col": col, "act": actual, "exp": expect})
         
+        # Fin de l'extraction unique des événements
+        seen = set()
+        unique_events = [x for x in cal_events if not (x['name'] in seen or seen.add(x['name']))]
+
         h4_p = min(max(50 + ((df_m15['Close'].iloc[-1] - df_m15['Close'].mean())/2), 10), 90)
-        
-        # Financier
         cap, risk_pct = 959.56, 0.06
         sl_dyn = max(vol_atr * 0.5, 15.0)
         perte_gbp = cap * risk_pct
@@ -80,13 +92,13 @@ def sync_terminal():
         status_color = "#ffb000" if status_text == "NEUTRAL" else "#00ff88" if status_text == "BULLISH" else "#ff4b4b"
 
         # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V62 CALENDAR ENGINE | M15</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V63 PRO CALENDAR | M15 CHART</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         col_main, col_side = st.columns([2, 1])
 
         with col_main:
-            # Roadmap & Protocole
+            # Roadmap
             prog = (math.log(cap/100) / math.log(1000000/100)) * 100
             st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
             st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
@@ -114,26 +126,44 @@ def sync_terminal():
                 st.markdown(f"""<div class="matrix-row"><div class="m-id">P{i:02}</div><div style="color:white; font-weight:bold; font-size:13px;">{tr:,.0f} £</div><div style="color:#00ff88; font-weight:bold; width:80px;">LOT: {(tr*0.06)/(sl_dyn*10):.2f}</div>{badge}</div>""", unsafe_allow_html=True)
 
         with col_side:
-            # Stats & Sensors
+            # Stats
             st.markdown("<p class='label'>● BULL VS BEAR DOMINANCE</p>", unsafe_allow_html=True)
             st.markdown(f"""<div class='kz-card'><small>IMPULSE M15</small><div class='bar-container'><div class='p-bull' style='width:{bull_score}%'></div></div></div>""", unsafe_allow_html=True)
             st.metric("DXY INDEX", f"{dxy:.2f}")
             st.metric("REAL YIELDS", f"{yields:.2f}%")
             
+            # Intel Sidebar
+            st.markdown(f"""<div class="intel-desk-sidebar"><p class='label' style='color:#ffb000; margin-bottom:10px;'>⚔️ STRATEGIC INTEL</p><div style="font-size:10px; color:#aaa;"><b>M15 ENGINE :</b> Réactivité x25.<br><b>STATUS :</b> {status_text}</div></div>""", unsafe_allow_html=True)
+
+            # --- NOUVEAU BLOC : CALENDRIER ÉCONOMIQUE ATTRACTIF ---
+            st.markdown("<p class='label'>● ECONOMIC CALENDAR (LIVE)</p>", unsafe_allow_html=True)
+            st.markdown("""
+            <div class='kz-card' style='padding: 8px;'>
+                <div class='cal-header'>
+                    <span style='width: 80px;'>EVENT</span>
+                    <span style='width: 45px; text-align: right;'>ACT</span>
+                    <span style='width: 45px; text-align: right;'>EXP</span>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            if unique_events:
+                for ev in unique_events[:5]:
+                    st.markdown(f"""
+                    <div class="cal-row">
+                        <span style="width: 80px;"><span class="impact-dot" style="background:{ev['col']};"></span>{ev['name']}</span>
+                        <span class="cal-val" style="color:#00ff88;">{ev['act']}</span>
+                        <span class="cal-val" style="color:#555;">{ev['exp']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.markdown("<div style='font-size:10px; color:#444; padding:10px 0;'>No high-impact data today.</div>", unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # News
             st.markdown("<p class='label'>● NEWS STREAM</p>", unsafe_allow_html=True)
             for n in news[:2]:
                 st.markdown(f"<div style='font-size:10px; padding:3px 0;'>🕒 {n.published[5:11]} | {n.title[:45]}...</div>", unsafe_allow_html=True)
-
-            # Strategic Intel Block
-            st.markdown(f"""<div class="intel-desk-sidebar"><p class='label' style='color:#ffb000; margin-bottom:10px;'>⚔️ STRATEGIC INTEL</p><div style="font-size:10px; color:#aaa;"><b>M15 PRECISION :</b> Réactivité x25.<br><b>STATUS :</b> {status_text}</div></div>""", unsafe_allow_html=True)
-
-            # --- NOUVEAU BLOC : CALENDRIER ÉCONOMIQUE ---
-            st.markdown("<p class='label'>● ECONOMIC CALENDAR (TODAY)</p>", unsafe_allow_html=True)
-            if cal_events:
-                for ev in cal_events[:4]:
-                    st.markdown(f"""<div class="cal-event"><span>📅 {ev['name']}</span><span style="color:{ev['col']}; font-weight:bold;">{ev['impact']}</span></div>""", unsafe_allow_html=True)
-            else:
-                st.markdown("<div style='font-size:10px; color:#444;'>Aucune news majeure détectée.</div>", unsafe_allow_html=True)
 
         st.markdown(f"<div style='background:{status_color}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {status_text}</div>", unsafe_allow_html=True)
 
