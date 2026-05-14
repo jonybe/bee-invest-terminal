@@ -27,7 +27,8 @@ st.markdown("""
     .p-bear { background: #ff4b4b; height: 100%; transition: 0.5s; }
     .legende-centrale { font-size: 11px; color: #888; line-height: 1.6; padding: 15px; background: #0a0a0a; border-radius: 4px; border-left: 4px solid #ffb000; margin: 15px 0; }
     
-    .intel-desk { background: #080808; border: 1px dashed #333; padding: 20px; border-radius: 4px; margin-top: 30px; }
+    .intel-desk-sidebar { background: #080808; border-top: 1px dashed #333; padding: 12px 0; margin-top: 15px; }
+    .m15-flash { font-family: 'JetBrains Mono'; font-size: 10px; padding: 5px; border-radius: 3px; margin-top: 5px; border: 1px solid #222; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -36,10 +37,19 @@ def get_market_data():
         t = yf.Ticker("GC=F")
         gold = t.fast_info['last_price']
         df_h2 = t.history(period="10d", interval="1h").resample('2h').agg({'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'}).dropna()
-        yesterday = t.history(period="2d", interval="15m")
+        
+        # Données M15 pour analyse précise
+        df_m15 = t.history(period="1d", interval="15m")
+        m15_imp = ((df_m15['Close'].iloc[-1] - df_m15['Close'].iloc[-2]) / df_m15['Close'].iloc[-2]) * 100
+        
+        # Précision M15 : Volatilité relative (Tape Speed)
+        m15_vol = df_m15['Close'].tail(4).std() 
+        m15_avg_vol = df_m15['Close'].tail(20).std()
+        tape_speed = "HIGH" if m15_vol > m15_avg_vol else "NORMAL"
+        
+        yesterday = t.history(period="2d", interval="60m")
         p_high, p_low = yesterday.iloc[:int(len(yesterday)/2)]['High'].max(), yesterday.iloc[:int(len(yesterday)/2)]['Low'].min()
         poc = yesterday.iloc[:int(len(yesterday)/2)]['Close'].mode().iloc[0]
-        m15_imp = ((yesterday['Close'].iloc[-1] - yesterday['Close'].iloc[-2]) / yesterday['Close'].iloc[-2]) * 100
         
         hist = t.history(period="5d")
         vol_atr = (hist['High'] - hist['Low']).mean()
@@ -52,24 +62,26 @@ def get_market_data():
         text = " ".join([n.title.lower() for n in news])
         geo, cb, etf = (32.5, 21.4, 11.2) if "war" in text or "tension" in text else (28.0, 18.0, 9.0)
         h4_p = min(max(50 + ((df_h2['Close'].iloc[-1] - df_h2['Close'].mean())/2), 10), 90)
-        return gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h2, p_high, p_low, poc, change, m15_imp
+        
+        return gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h2, p_high, p_low, poc, change, m15_imp, tape_speed
     except: return None
 
 data = get_market_data()
 
 if data:
-    gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h2, ph, pl, poc, g_change, m15_imp = data
+    gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h2, ph, pl, poc, g_change, m15_imp, tape_speed = data
     cap, risk_pct = 959.56, 0.06
     sl_dyn = max(vol_atr * 0.5, 15.0)
     perte_gbp = cap * risk_pct
     lot = perte_gbp / (sl_dyn * 10)
+    
     drag = (dxy - 100) + (yields * 5)
     bull_score = min(max((geo + cb + etf) - drag + (m15_imp * 10), 10), 100)
     status_text = "NEUTRAL" if 42 <= bull_score <= 58 else "BULLISH" if bull_score > 58 else "BEARISH"
     status_color = "#ffb000" if "NEUTRAL" in status_text else "#00ff88" if "BULL" in status_text else "#ff4b4b"
 
     # --- Header ---
-    st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V51 INTELLIGENCE STRATEGIST</small></div><div class='val-quant'>{gold:,.2f} $ <small style='color:{status_color};'>[{status_text}]</small></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V52 M15 PRECISION ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <small style='color:{status_color};'>[{status_text}]</small></div></div>""", unsafe_allow_html=True)
     st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
     col_main, col_side = st.columns([2, 1])
@@ -77,7 +89,7 @@ if data:
     with col_main:
         # ROADMAP
         prog = (math.log(cap/100) / math.log(1000000/100)) * 100
-        st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE ACTUEL: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
         st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
 
         # CHART
@@ -122,33 +134,28 @@ if data:
         st.markdown("<p class='label'>● PRESSURE SENSORS</p>", unsafe_allow_html=True)
         for ut, pr in [("H4 TREND", h4_p), ("H2 FLOW", h4_p-5), ("M15 MOMENTUM", h4_p+(m15_imp*10))]:
             st.markdown(f"<div style='display:flex; justify-content:space-between;'><small>{ut}</small><small>{pr:.1f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{pr}%'></div></div>", unsafe_allow_html=True)
+        
         st.markdown("<p class='label'>● NEWS STREAM</p>", unsafe_allow_html=True)
         for n in news[:3]:
             st.markdown(f"<div style='font-size:10px; border-bottom:1px solid #111; padding:3px 0;'>🕒 {n.published[5:11]} | {n.title[:50]}...</div>", unsafe_allow_html=True)
 
-    # --- LE BUREAU D'INTELLIGENCE (NOUVEAU BLOC) ---
-    st.markdown(f"""
-    <div class="intel-desk">
-        <h3 style="color:#ffb000; margin-top:0;">⚔️ STRATEGIC INTELLIGENCE : MICRO vs MACRO</h3>
-        <p style="color:#888;">Pourquoi le terminal peut différer d'une capture "Killzone" institutionnelle :</p>
-        <div style="display:flex; gap:20px;">
-            <div style="flex:1; border-right:1px solid #222; padding-right:20px;">
-                <b style="color:#ff4b4b;">🔴 MICRO (CAPTURE KILLZONE) :</b><br>
-                Regarde le <b>Flux d'Ordres (Tape)</b> immédiat. Si le prix chute de -0.30% en 15min, il passe en "Bearish" instantanément pour protéger le capital. C'est la vue du <b>Sniper</b>.
-            </div>
-            <div style="flex:1;">
-                <b style="color:#00ff88;">🟢 MACRO (TON TERMINAL) :</b><br>
-                Regarde la <b>Structure de Fond</b>. Même si le prix baisse sur 15min, si les Banques Centrales achètent et que le DXY est bas, le terminal garde son biais "Bullish". C'est la vue du <b>Stratège</b>.
+        # --- NOUVEL EMPLACEMENT BUREAU D'INTELLIGENCE (SIDEBAR) ---
+        st.markdown(f"""
+        <div class="intel-desk-sidebar">
+            <p class='label' style='color:#ffb000; margin-bottom:10px;'>⚔️ STRATEGIC INTEL (M15 FOCUS)</p>
+            <div style="font-size:10px; line-height:1.4; color:#aaa;">
+                <b style="color:#ff4b4b;">MICRO (M15) :</b> Flux immédiat. Analyse de la vélocité des ordres.<br>
+                <b style="color:#00ff88;">MACRO (TERM) :</b> Direction lourde (DXY/Taux).<br>
+                <div class="m15-flash" style="background:{'rgba(0,255,136,0.1)' if tape_speed == 'NORMAL' else 'rgba(255,176,0,0.1)'};">
+                    ⚡ <b>TAPE SPEED :</b> {tape_speed}<br>
+                    🔍 <b>ACTION :</b> {'Entrée saine' if tape_speed == 'NORMAL' else 'Attendre stabilisation'}
+                </div>
+                <p style="margin-top:10px; font-style:italic; border-left:2px solid #333; padding-left:5px;">
+                    Divergence détectée ? Si M15 chute alors que le terminal est Vert, c'est une <b>opportunité de rachat à bas prix</b>.
+                </p>
             </div>
         </div>
-        <p style="margin-top:15px; color:#aaa; font-style:italic;">
-            📌 <b>CONSEIL :</b> Si le Killzone est Rouge et ton terminal Vert, le marché est en "Divergence". 
-            Attends que ton <b>Impulse Score (M15)</b> redevienne positif avant d'exécuter, pour acheter au meilleur prix.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    
+        """, unsafe_allow_html=True)
 
     st.markdown(f"<div style='background:{status_color}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {status_text} | {'VALIDÉ' if bull_score > 58 or bull_score < 42 else 'ATTENTE'}</div>", unsafe_allow_html=True)
 
