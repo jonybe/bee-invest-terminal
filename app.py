@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V100 BADGE FIX & P07)
+# 1. Configuration & Design System (V101 ZERO SCINTILLEMENT ABSOLU)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 if 'trades' not in st.session_state:
@@ -15,17 +15,26 @@ if 'trades' not in st.session_state:
 if 'last_m5_ts' not in st.session_state:
     st.session_state.last_m5_ts = None
 
-# CSS ANTI-SCINTILLEMENT & DESIGN VERROUILLÉ
+# CSS ANTI-SCINTILLEMENT "NUCLÉAIRE" & DESIGN VERROUILLÉ
 st.markdown("""
 <style>
-    :root {
+    /* ÉCRASEMENT GLOBAL DES ANIMATIONS STREAMLIT */
+    * {
         --st-fragment-fade-opacity: 1 !important;
         --st-fragment-fade-duration: 0ms !important;
     }
-    div[data-testid="stAppViewBlockContainer"], div[data-testid="stVerticalBlock"],
-    div[data-fragment-component-id], [data-testid="stFragment"] {
-        opacity: 1 !important; transition: none !important; filter: none !important;
+    
+    div[data-testid="stAppViewBlockContainer"], 
+    div[data-testid="stVerticalBlock"],
+    div[data-fragment-component-id], 
+    [data-testid="stFragment"],
+    [data-testid="stFragment"] > div {
+        opacity: 1 !important; 
+        transition: none !important; 
+        animation: none !important;
+        filter: blur(0px) !important;
     }
+
     html, body, [data-testid="stAppViewContainer"] { background-color: #050505 !important; color: #e0e0e0; font-family: 'Inter', sans-serif; font-size: 11.5px; }
     .block-container { padding-top: 3.5rem !important; padding-bottom: 0rem !important; }
     .kz-card { background: #0d0d0d; border: 1px solid #1a1a1a; padding: 12px; border-radius: 4px; margin-bottom: 8px; }
@@ -38,7 +47,6 @@ st.markdown("""
     .flow-bar-bg { height: 14px; background: #ff4b4b; border-radius: 2px; overflow: visible; display: flex; position: relative; }
     .flow-bar-fill { height: 100%; background: #00ff88; transition: 0.5s; border-radius: 2px 0 0 2px; }
     
-    /* BADGE LABELLISÉ : MODIFIÉ POUR SE PLACER AU-DESSUS DE LA BARRE */
     .leaning-badge { z-index: 10; background: rgba(10,10,10,0.95); border: 1px solid #222; padding: 4px 14px; border-radius: 4px; text-align: center; min-width: 140px; }
     .tf-label { font-size: 7px; color: #555; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; }
     .leaning-text { font-size: 8px; font-weight: 900; text-transform: uppercase; }
@@ -102,7 +110,7 @@ def sync_terminal():
             st.session_state.last_m5_ts = curr_m5
 
         # --- RENDER ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V100 BARS CLEARED | MATRIX P07</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V101 BARS CLEARED | MATRIX P07</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -111,7 +119,7 @@ def sync_terminal():
             prog = (math.log(cap/100) / math.log(1000000/100)) * 100
             st.markdown(f"<div style='margin-bottom:15px;'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
             
-            # --- BULL VS BEAR DOMINANCE (BADGES DÉGAGÉS AU DESSUS DES BARRES) ---
+            # --- BULL VS BEAR DOMINANCE ---
             st.markdown(f"""
             <div class="dom-container">
                 <div style="display:flex; justify-content:space-between; margin-bottom:20px;"><div style="color:#e0e0e0; font-size:11px; font-weight:bold; letter-spacing:2px;">● BULL VS BEAR · DOMINANCE</div></div>
@@ -156,10 +164,10 @@ def sync_terminal():
                         st.markdown(f"""<div class='kz-card' style='border-left:3px solid {b_c};'><b style='color:{b_c};'>{tr['type']} ACTIVE</b><br><small>{tr['ts'].strftime('%H:%M')}</small><div style='font-family:JetBrains Mono; font-size:10px; margin-top:5px;'>⚪ IN: {tr['in']:,.2f}<br>🟢 TP: {tr['tp']:,.2f}<br>🔴 SL: {tr['sl']:,.2f}</div></div>""", unsafe_allow_html=True)
             else: st.markdown(f"<div class='kz-card' style='text-align:center; color:#444; padding:20px;'>⌛ WAITING FOR M5 SIGNAL...</div>", unsafe_allow_html=True)
 
-            # MATRIX (AJOUT DE P07)
+            # MATRIX (AVEC P07)
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase;'>● MATRIX ROADMAP : RÉEL | BRUT</p>", unsafe_allow_html=True)
             tr_m, tr_g = cap, cap
-            for i in range(1, 8):  # Changement ici : de 7 à 8 pour inclure P07
+            for i in range(1, 8):  # P01 à P07
                 ret = (tr_m * 0.1) if tr_m > 5000 else 0
                 tr_m, tr_g = (tr_m * 2) - ret, (tr_g * 2)
                 badge = f"<div class='m-badge-blue'>SORTIE: {ret:,.0f}£</div>" if i >= 4 and ret > 0 else "<div class='m-badge-red'>ACCUMULATION</div>"
@@ -186,7 +194,7 @@ def sync_terminal():
             st.markdown("<div class='kz-card' style='padding:8px;'><div style='display:flex; font-size:8px; color:#444; border-bottom:1px solid #222; padding-bottom:4px; margin-bottom:5px; font-weight:bold;'><span>EVENT</span><span style='margin-left:auto;'>ACT / EXP</span></div>" + 
                 "".join([f"<div style='display:flex; font-size:10px; padding:6px 0; border-bottom:1px solid #111; align-items:center;'><span>● {ev['name']}</span><span style='margin-left:auto; color:#00ff88;'>{ev['act']}</span></div>" for ev in cal_data[:4]]) + "</div>", unsafe_allow_html=True)
             
-            # NEWS (5 LIGNES)
+            # NEWS
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase; margin-top:5px;'>● LIVE NEWS STREAM</p>", unsafe_allow_html=True)
             for n in feed.entries[:5]:
                 st.markdown(f"<div style='font-size:9px; border-bottom:1px solid #111; padding:5px 0;'>🕒 {n.published[17:22]} | {n.title[:45]}...</div>", unsafe_allow_html=True)
