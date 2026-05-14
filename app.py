@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V85 ANTI-DIMMING)
+# 1. Configuration & Design System (V86 ANTI-FLICKER OMEGA)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 if 'trades' not in st.session_state:
@@ -15,13 +15,31 @@ if 'trades' not in st.session_state:
 if 'last_m5_ts' not in st.session_state:
     st.session_state.last_m5_ts = None
 
+# CSS RADICAL POUR STOPPER LE CLIGNOTEMENT
 st.markdown("""
 <style>
-    /* FIX ASSOMBRISSEMENT : Force l'opacité lors du refresh */
-    [data-testid="stAppViewBlockContainer"] { opacity: 1 !important; transition: none !important; }
-    [data-testid="stVerticalBlock"] { opacity: 1 !important; }
+    /* Désactivation totale des effets de chargement Streamlit */
+    div[data-testid="stAppViewBlockContainer"], 
+    div[data-testid="stVerticalBlock"],
+    div[data-fragment-component-id] {
+        opacity: 1 !important;
+        transition: none !important;
+        filter: none !important;
+    }
     
-    html, body, [data-testid="stAppViewContainer"] { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; font-size: 11.5px; }
+    /* Empêche le voile sombre spécifique aux fragments */
+    .st-emotion-cache-z5fcl4, .st-emotion-cache-16ids99 {
+        opacity: 1 !important;
+        transition: none !important;
+    }
+
+    html, body, [data-testid="stAppViewContainer"] { 
+        background-color: #050505 !important; 
+        color: #e0e0e0; 
+        font-family: 'Inter', sans-serif; 
+        font-size: 11.5px; 
+    }
+
     .block-container { padding-top: 3.5rem !important; padding-bottom: 0rem !important; }
     .kz-card { background: #0d0d0d; border: 1px solid #1a1a1a; padding: 12px; border-radius: 4px; margin-bottom: 8px; }
     .label { color: #555; font-size: 9px; text-transform: uppercase; font-weight: bold; letter-spacing: 1.2px; }
@@ -103,7 +121,7 @@ def sync_terminal():
             st.session_state.last_m5_ts = curr_m5
 
         # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V85 ZERO-FLICKER | WEEKLY CALENDAR</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V86 OMEGA STABLE | NO FLICKER</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
