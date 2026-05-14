@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V71 LOCKED)
+# 1. Configuration & Design System (V72 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -62,7 +62,7 @@ def sync_terminal():
         geo, cb, etf = (32.5, 21.4, 11.2) if any(x in text_full for x in ["war", "conflict", "tension"]) else (28.0, 18.0, 9.5)
         fund_sent = ((geo + cb + etf) / 65.1) * 100
         
-        # Calendar
+        # Calendar (Sanity Check)
         cal_events = []
         for n in feed.entries[:20]:
             title = n.title.upper()
@@ -71,9 +71,17 @@ def sync_terminal():
                 nums = re.findall(r'\d+\.\d+', title)
                 cal_events.append({"name": next((x for x in ["PPI", "CPI", "PMI", "FED", "NFP"] if x in title), "DATA"), 
                                    "impact": impact, "col": "#ff4b4b" if impact == "HIGH" else "#ffb000",
-                                   "act": nums[-1]+"%" if nums else "--", "exp": nums[0]+"%" if len(nums)>1 else "--"})
+                                   "act": nums[-1]+"%" if nums and float(nums[-1]) < 20 else "--", "exp": nums[0]+"%" if len(nums)>1 and float(nums[0]) < 20 else "--"})
         seen = set()
         unique_cal = [x for x in cal_events if not (x['name'] in seen or seen.add(x['name']))]
+
+        # Account Update
+        cap = 960.23 # MISE À JOUR SOLDE
+        hist = t.history(period="5d")
+        vol_atr = (hist['High'] - hist['Low']).mean()
+        sl_dyn = max(vol_atr * 0.5, 15.0)
+        perte_gbp = cap * 0.06
+        lot = perte_gbp / (sl_dyn * 10)
 
         # Score & Verdict
         h4_p = min(max(50 + ((gold - df_m15['Close'].mean())/2), 10), 90)
@@ -83,15 +91,15 @@ def sync_terminal():
         status_color = "#ffb000" if status_text == "NEUTRAL" else "#00ff88" if status_text == "BULLISH" else "#ff4b4b"
 
         # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V71 MACRO ANALYST | M15 ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V72 ACCOUNT UPDATED | M15 ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         col_main, col_side = st.columns([2, 1])
 
         with col_main:
             # Roadmap Progress
-            prog = (math.log(max(959, gold)/100) / math.log(1000000/100)) * 100
-            st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: 959.56 £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
+            prog = (math.log(cap/100) / math.log(1000000/100)) * 100
+            st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
             st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
 
             # Chart M15
@@ -105,11 +113,11 @@ def sync_terminal():
             st.markdown("<p class='label'>● PARAMÈTRES & PROJECTION</p>", unsafe_allow_html=True)
             t_col1, t_col2 = st.columns(2)
             t_col1.markdown(f"<div class='kz-card' style='font-size:11px; border-left:3px solid #ffb000;'>🟢 <b>TP:</b> {gold+25:,.2f}<br>⚪ <b>IN:</b> {gold:,.2f}<br>🔴 <b>SL:</b> {gold-12:,.2f}</div>", unsafe_allow_html=True)
-            t_col2.markdown(f"<div class='kz-card' style='font-size:11px; border-left:3px solid #00ff88;'>💰 <b>GAIN:</b> +115.15 £<br>⚠️ <b>RISQUE:</b> -57.57 £<br>📊 <b>LOT:</b> 0.24</div>", unsafe_allow_html=True)
+            t_col2.markdown(f"<div class='kz-card' style='font-size:11px; border-left:3px solid #00ff88;'>💰 <b>GAIN:</b> +{perte_gbp*2:.2f} £<br>⚠️ <b>RISQUE:</b> -{perte_gbp:.2f} £<br>📊 <b>LOT:</b> {lot:.2f}</div>", unsafe_allow_html=True)
 
             # Matrix Roadmap
             st.markdown("<p class='label'>● MATRIX ROADMAP : ÉVOLUTION DU CAPITAL RÉEL</p>", unsafe_allow_html=True)
-            tr = 959.56
+            tr = cap
             for i in range(1, 6):
                 ret = (tr * 0.1) if tr > 5000 else 0
                 tr = (tr * 2) - ret
@@ -121,7 +129,7 @@ def sync_terminal():
             st.markdown("<p class='label'>● BULL VS BEAR DOMINANCE</p>", unsafe_allow_html=True)
             st.markdown(f"""<div class='kz-card'><div style='display:flex; justify-content:space-between;'><small>IMPULSE M15</small><small style='color:{status_color}; font-weight:bold;'>{m15_imp:+.3f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{bull_score}%'></div></div></div>""", unsafe_allow_html=True)
             
-            st.markdown("<p class='label'>● PRESSURE SENSORS</p>", unsafe_allow_html=True)
+            st.markdown("<p class='label'>● PRESSURE SENSORS (RAW VALUES)</p>", unsafe_allow_html=True)
             for ut, pr in [("H4 TREND", h4_p), ("H2 FLOW", h4_p-5), ("M15 MOMENTUM", h4_p+(m15_imp*35))]:
                 st.markdown(f"<div style='display:flex; justify-content:space-between;'><small>{ut}</small><small style='color:#00ff88; font-weight:bold;'>{pr:.1f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{pr}%'></div></div>", unsafe_allow_html=True)
             
@@ -139,15 +147,12 @@ def sync_terminal():
             </div>
             """, unsafe_allow_html=True)
 
-            # --- MACRO METRICS + ANALYSE ---
+            # Macro Analysis
             st.markdown("<p class='label'>● MACRO ANALYSIS (CORRELATION)</p>", unsafe_allow_html=True)
-            
             st.metric("DXY INDEX", f"{dxy:.2f}")
             st.markdown(f"<div class='macro-note'>Vendre Gold si DXY > 102.50. Chute = Bullish Gold.</div>", unsafe_allow_html=True)
-            
             st.metric("REAL YIELDS", f"{yields:.2f}%")
             st.markdown(f"<div class='macro-note'>Coût d'opportunité haut si Yields ↑. Bullish Gold si < 4.0%.</div>", unsafe_allow_html=True)
-            
             st.metric("VIX INDEX", f"{vix:.2f}")
             st.markdown(f"<div class='macro-note'>Safe Haven demand si VIX > 20. Panique = Achat Gold.</div>", unsafe_allow_html=True)
             
