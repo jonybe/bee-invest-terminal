@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V79 TOTAL RESTORE)
+# 1. Configuration & Design System (V80 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -40,7 +40,7 @@ def sync_terminal():
         df_m15 = t.history(period="2d", interval="15m").dropna()
         m15_imp = ((gold - df_m15['Close'].iloc[-2]) / df_m15['Close'].iloc[-2]) * 100
         
-        # 2. VOLUME PROFILE (V77 FAST METHOD)
+        # 2. VOLUME PROFILE (V77 STABLE METHOD)
         vp_data = df_m15.tail(96).copy()
         p_min, p_max = vp_data['Low'].min(), vp_data['High'].max()
         bins, bin_size = 20, (p_max - p_min) / 20
@@ -77,7 +77,7 @@ def sync_terminal():
                     cal_data.append({"name": ev_name, "act": nums[-1]+"%" if nums else "--", "exp": nums[0]+"%" if len(nums)>1 else "--", "col": "#ff4b4b" if "FED" in ev_name or "CPI" in ev_name else "#ffb000"})
 
         # --- RENDER ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V79 OMEGA RESTORE | M15 ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V80 P06 ROADMAP | M15 ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -106,14 +106,15 @@ def sync_terminal():
                 e, d = gold, 12.0
                 tp, sl = (e+d*2 if opp=="LONG" else e-d*2), (e-d if opp=="LONG" else e+d)
                 sc1, sc2 = st.columns(2)
-                sc1.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>🔥 <b>{opp} SETUP</b><br>⚪ IN: {e:,.2f}<br>🟢 TP: {tp:,.2f}<br>🔴 SL: {sl:,.2f}</div>", unsafe_allow_html=True)
+                sc1.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>🔥 <b>{opp} SETUP</b><br>⚪ IN: {e:,.2f}<br>🟢 TP: {tp_p:,.2f}<br>🔴 SL: {sl_p:,.2f}</div>", unsafe_allow_html=True)
                 sc2.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>📊 LOTS: {(cap*0.06)/(d*10):.2f}<br>💰 GAIN: +{(cap*0.06)*2:.2f} £</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<div class='kz-card' style='text-align:center; color:#444; padding:20px;'>⌛ WAITING FOR SETUP...</div>", unsafe_allow_html=True)
 
-            st.markdown("<p class='label'>● MATRIX ROADMAP</p>", unsafe_allow_html=True)
+            # --- MATRIX ROADMAP AVEC P06 ---
+            st.markdown("<p class='label'>● MATRIX ROADMAP : ÉVOLUTION DU CAPITAL RÉEL</p>", unsafe_allow_html=True)
             tr_m = cap
-            for i in range(1, 6):
+            for i in range(1, 7): # Changement : range 1 à 7 pour inclure P06
                 ret = (tr_m * 0.1) if tr_m > 5000 else 0
                 tr_m = (tr_m * 2) - ret
                 badge = f"<div class='m-badge-blue'>SORTIE: {ret:,.0f}£</div>" if ret > 0 else f"<div class='m-badge-red'>ACCUMULATION</div>"
