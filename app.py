@@ -5,7 +5,7 @@ import math
 import pandas as pd
 from datetime import datetime, timedelta
 
-# 1. Config & Design System (V23 à V29)
+# 1. Configuration & Design System (Fix Chevauchement)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -16,7 +16,11 @@ st.markdown("""
         font-family: 'Inter', sans-serif; 
         font-size: 12px; 
     }
-    .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
+    /* MARGE DE SÉCURITÉ EN HAUT POUR L'EN-TÊTE */
+    .block-container { 
+        padding-top: 3.5rem !important; 
+        padding-bottom: 0rem !important; 
+    }
     .kz-card { background: #0d0d0d; border: 1px solid #1a1a1a; padding: 12px; border-radius: 4px; margin-bottom: 8px; }
     .label { color: #555; font-size: 9px; text-transform: uppercase; font-weight: bold; letter-spacing: 1.2px; }
     .val-quant { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: bold; color: #00ff88; }
@@ -54,19 +58,16 @@ if data:
     p_restants = math.log(1000000 / cap) / math.log(2)
     prog = (math.log(cap/100) / math.log(1000000/100)) * 100
     lot = (cap * risk) / 150
-    
-    # Drawdown basé sur ta stratégie : Perte Max admise par setup (6%)
-    # On affiche combien de trades perdants consécutifs feraient sauter le palier actuel
     perte_par_trade = cap * risk
-    survie_trades = cap / perte_par_trade # Combien de trades avant 0 (mathématiquement)
+    survie_trades = cap / perte_par_trade 
     
     drag = (dxy - 100) + (yields * 5)
     dominance = min(max((geo + cb + etf) - drag, 10), 100)
     can_trade = dominance > 58 and yields < 2.00
 
-    # Header
+    # Header descendu et dégagé
     h1, h2 = st.columns([2, 1])
-    h1.markdown(f"<h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444; font-size:8px;'>MASTER ROADMAP V30 | RISK 6% | SURVIE : {survie_trades:.0f} TRADES</small>", unsafe_allow_html=True)
+    h1.markdown(f"<h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444; font-size:8px;'>MASTER ROADMAP V31 | RISK 6% | SURVIE : {survie_trades:.0f} TRADES</small>", unsafe_allow_html=True)
     h2.markdown(f"<div style='text-align:right;'><span class='val-quant'>{gold:,.2f} $</span><br><small style='color:#444; font-size:9px;'>{datetime.now().strftime('%H:%M:%S')}</small></div>", unsafe_allow_html=True)
 
     st.markdown("<hr style='margin: 0.2rem 0;'>", unsafe_allow_html=True)
@@ -74,13 +75,13 @@ if data:
     col_main, col_side = st.columns([2, 1])
 
     with col_main:
-        # 1. ROADMAP (CALIBRÉE)
+        # 1. ROADMAP
         st.markdown("<p class='label'>● ROADMAP STRATÉGIQUE VERS LE MILLION</p>", unsafe_allow_html=True)
         st.markdown(f"""
         <div class='roadmap-box'>
             <div style='display:flex; justify-content:space-between; font-size:10px;'>
-                <span>Paliers de doublement : <b>{p_restants:.1f}</b></span>
-                <span style='color:#ffb000;'>Progression Réelle : {prog:.2f}%</span>
+                <span>Paliers : <b>{p_restants:.1f}</b></span>
+                <span style='color:#ffb000;'>Progression : {prog:.2f}%</span>
             </div>
             <div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div>
             <div style='display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; font-size:10px; color:#888; margin-top:5px;'>
@@ -100,7 +101,7 @@ if data:
         with c_ex2:
             st.markdown(f"""<div class='kz-card' style='font-size:11px;'><small class='label'>OBJECTIFS DE PRIX</small><br>🟢 TP FINAL : <b>{gold+30:,.1f}</b><br>🟢 TP PARTIEL : <b>{gold+15:,.1f}</b><br>⚪ ENTRY : <b>{gold:,.1f}</b><br>🔴 SL : <b>{gold-15:,.1f}</b></div>""", unsafe_allow_html=True)
 
-        # 3. DIAGRAMME & TABLEAU (V28/29 INTACTS)
+        # 3. DIAGRAMME & TABLEAU
         st.markdown("<p class='label'>● COURBE DE CROISSANCE COMPOSÉE</p>", unsafe_allow_html=True)
         p_list = []
         temp_cap = cap
