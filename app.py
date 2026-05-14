@@ -4,11 +4,10 @@ import feedparser
 import math
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V76 LOCKED)
+# 1. Configuration & Design System (V77 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -24,11 +23,13 @@ st.markdown("""
     .m-badge-blue { padding: 4px 10px; border-radius: 12px; font-size: 8.5px; font-weight: bold; text-transform: uppercase; background: rgba(88, 166, 255, 0.1); color: #58a6ff; border: 1px solid #58a6ff33; width: 110px; text-align: center; }
     .bar-container { background: #1a1a1a; height: 6px; border-radius: 3px; margin: 4px 0 10px 0; overflow: hidden; display: flex; }
     .p-bull { background: #00ff88; height: 100%; transition: 0.2s; } 
-    .p-bear { background: #ff4b4b; height: 100%; transition: 0.2s; }
     .legende-centrale { font-size: 11px; color: #888; line-height: 1.6; padding: 15px; background: #0a0a0a; border-radius: 4px; border-left: 4px solid #ffb000; margin: 15px 0; }
     .status-tag { padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; }
-    .cal-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #111; font-size: 10px; }
-    .cal-val { font-family: 'JetBrains Mono', monospace; font-weight: bold; width: 45px; text-align: right; }
+    
+    /* CALENDAR FIX */
+    .cal-header { display: flex; font-size: 8px; color: #444; border-bottom: 1px solid #222; padding-bottom: 4px; margin-bottom: 5px; font-weight: bold; }
+    .cal-col-ev { width: 50%; } .cal-col-val { width: 25%; text-align: right; }
+    .cal-row { display: flex; font-size: 10px; padding: 6px 0; border-bottom: 1px solid #111; align-items: center; }
     .macro-note { font-size: 9px; color: #666; margin-top: -10px; margin-bottom: 10px; font-style: italic; }
 </style>
 """, unsafe_allow_html=True)
@@ -36,23 +37,23 @@ st.markdown("""
 @st.fragment(run_every=2)
 def sync_terminal():
     try:
-        # 1. FETCH DATA
+        # 1. DATA ACQUISITION
         t = yf.Ticker("GC=F")
         gold = t.fast_info['last_price']
         df_m15 = t.history(period="2d", interval="15m").dropna()
         m15_imp = ((gold - df_m15['Close'].iloc[-2]) / df_m15['Close'].iloc[-2]) * 100
         
-        # 2. VOLUME PROFILE (Fast Render)
+        # 2. VOLUME PROFILE CALCULATION
         vp_data = df_m15.tail(96).copy()
-        price_min, price_max = vp_data['Low'].min(), vp_data['High'].max()
-        bins = 30
-        bin_size = (price_max - price_min) / bins
-        vp_data['bin'] = ((vp_data['Close'] - price_min) / bin_size).astype(int).clip(0, bins-1)
-        volume_profile = vp_data.groupby('bin', observed=True)['Volume'].sum()
+        p_min, p_max = vp_data['Low'].min(), vp_data['High'].max()
+        bins = 20
+        bin_size = (p_max - p_min) / bins
+        vp_data['bin'] = ((vp_data['Close'] - p_min) / bin_size).astype(int).clip(0, bins-1)
+        v_profile = vp_data.groupby('bin', observed=True)['Volume'].sum()
         
-        poc_price = price_min + (volume_profile.idxmax() * bin_size) + (bin_size/2)
+        poc_price = p_min + (v_profile.idxmax() * bin_size) + (bin_size/2)
         std_dev = vp_data['Close'].std()
-        vah, val = poc_price + (std_dev * 1.28), poc_price - (std_dev * 1.28)
+        vah, val = poc_price + (std_dev * 1.1), poc_price - (std_dev * 1.1)
 
         # 3. MACRO & NEWS
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
@@ -60,12 +61,22 @@ def sync_terminal():
         vix = yf.Ticker("^VIX").fast_info['last_price']
         feed = feedparser.parse("https://news.google.com/rss/search?q=XAU+Gold+PPI+CPI+FED&hl=en")
         
-        # 4. SCORES
+        # 4. SCORES & SENTIMENT
         text_full = " ".join([n.title.lower() for n in feed.entries])
         geo, cb, etf = (32.5, 21.4, 11.2) if any(x in text_full for x in ["war", "conflict", "tension"]) else (28.0, 18.0, 9.5)
         fund_sent = ((geo + cb + etf) / 65.1) * 100
         
-        # 5. ACCOUNT
+        # 5. CALENDAR PARSING
+        cal_data = []
+        for n in feed.entries[:15]:
+            title = n.title.upper()
+            if any(x in title for x in ["PPI", "CPI", "PMI", "FED", "NFP"]):
+                ev_name = next((x for x in ["PPI", "CPI", "PMI", "FED", "NFP"] if x in title), "NEWS")
+                if not any(d['name'] == ev_name for d in cal_data):
+                    nums = re.findall(r'\d+\.\d+', title)
+                    cal_data.append({"name": ev_name, "act": nums[-1]+"%" if nums else "--", "exp": nums[0]+"%" if len(nums)>1 else "--", "col": "#ff4b4b" if "FED" in ev_name or "CPI" in ev_name else "#ffb000"})
+
+        # 6. CALCULS
         cap = 960.23
         perte_gbp = cap * 0.06
         drag = (dxy - 100) + (yields * 5) + (vix * 0.5)
@@ -74,7 +85,7 @@ def sync_terminal():
         status_color = "#ffb000" if status_text == "NEUTRAL" else "#00ff88" if status_text == "BULLISH" else "#ff4b4b"
 
         # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V76 ENGINE STABILIZED | M15 PRO</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V77 STABLE CORE | M15 PRO</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -84,31 +95,33 @@ def sync_terminal():
             st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
             st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
 
-            # CHART WITH FAST VOLUME PROFILE
-            fig = make_subplots(specs=[[{"secondary_y": True}]])
-            fig.add_trace(go.Candlestick(x=df_m15.index, open=df_m15['Open'], high=df_m15['High'], low=df_m15['Low'], close=df_m15['Close'], name="M15"), secondary_y=False)
+            # CHART FIX (No more Axis conflict)
+            fig = go.Figure()
+            fig.add_trace(go.Candlestick(x=df_m15.index, open=df_m15['Open'], high=df_m15['High'], low=df_m15['Low'], close=df_m15['Close'], name="M15"))
             
-            # Profil Horizontal (Bar Chart sur Axe X inversé)
-            vp_prices = [price_min + (i * bin_size) for i in volume_profile.index]
-            fig.add_trace(go.Bar(y=vp_prices, x=volume_profile.values, orientation='h', name="Profile", marker_color="rgba(100,100,100,0.2)", width=bin_size), secondary_y=False)
+            # Volume Profile as Shapes (Paper coordinates for X to avoid axis breaking)
+            max_v = v_profile.max()
+            for b, v in v_profile.items():
+                p_level = p_min + (b * bin_size)
+                w = (v / max_v) * 0.15 # 15% de largeur
+                fig.add_shape(type="rect", xref="paper", yref="y", x0=0, x1=w, y0=p_level, y1=p_level+bin_size, fillcolor="rgba(150,150,150,0.1)", line_width=0)
             
-            fig.add_hline(y=poc_price, line_color="#ffb000", line_width=2)
+            fig.add_hline(y=poc_price, line_color="#ffb000", line_width=1.5, opacity=0.8)
             fig.add_hrect(y0=val, y1=vah, fillcolor="rgba(255, 255, 255, 0.05)", line_width=0)
-            fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=320, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False, showlegend=False)
+            fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=320, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-            # STRATEGIC OPPORTUNITY
+            # OPPORTUNITY
             st.markdown("<p class='label'>● STRATEGIC OPPORTUNITY FINDER</p>", unsafe_allow_html=True)
-            opportunity = "LONG" if status_text == "BULLISH" and gold <= vah else "SHORT" if status_text == "BEARISH" and gold >= val else None
-            if opportunity:
-                sl_dist = 12.0
-                entry_p, tp_p = gold, (gold + sl_dist*2 if opportunity=="LONG" else gold - sl_dist*2)
-                sl_p = gold - sl_dist if opportunity=="LONG" else gold + sl_dist
-                t_col1, t_col2 = st.columns(2)
-                t_col1.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>🔥 <b>{opportunity} SETUP</b><br>⚪ <b>IN:</b> {entry_p:,.2f}<br>🟢 <b>TP:</b> {tp_p:,.2f}<br>🔴 <b>SL:</b> {sl_p:,.2f}</div>", unsafe_allow_html=True)
-                t_col2.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>📊 <b>LOTS:</b> {perte_gbp/(sl_dist*10):.2f}<br>💰 <b>GAIN:</b> +{perte_gbp*2:.2f} £</div>", unsafe_allow_html=True)
+            opp = "LONG" if status_text == "BULLISH" and gold <= vah else "SHORT" if status_text == "BEARISH" and gold >= val else None
+            if opp:
+                entry, sl_d = gold, 12.0
+                tp, sl = (gold+sl_d*2 if opp=="LONG" else gold-sl_d*2), (gold-sl_d if opp=="LONG" else gold+sl_d)
+                t_c1, t_c2 = st.columns(2)
+                t_c1.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>🔥 <b>{opp} SETUP</b><br>⚪ <b>IN:</b> {entry:,.2f}<br>🟢 <b>TP:</b> {tp:,.2f}<br>🔴 <b>SL:</b> {sl:,.2f}</div>", unsafe_allow_html=True)
+                t_c2.markdown(f"<div class='kz-card' style='border-left:3px solid #00ff88;'>📊 <b>LOTS:</b> {perte_gbp/(sl_d*10):.2f}<br>💰 <b>GAIN:</b> +{perte_gbp*2:.2f} £</div>", unsafe_allow_html=True)
             else:
-                st.markdown(f"<div class='kz-card' style='text-align:center; color:#444; border:1px dashed #222; padding:20px;'>⌛ <b>WAITING FOR SETUP...</b><br><small>Market: {status_text} | Score: {bull_score:.1f}%</small></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='kz-card' style='text-align:center; color:#444; padding:20px;'>⌛ <b>WAITING FOR SETUP...</b></div>", unsafe_allow_html=True)
 
             # Roadmap
             st.markdown("<p class='label'>● MATRIX ROADMAP</p>", unsafe_allow_html=True)
@@ -120,6 +133,7 @@ def sync_terminal():
                 st.markdown(f"""<div class="matrix-row"><div class="m-id">P{i:02}</div><div style="width:150px; color:white; font-weight:bold;">{tr_m:,.0f} £</div><div style="color:#00ff88; font-weight:bold;">LOT: {(tr_m*0.06)/120:.2f}</div>{badge}</div>""", unsafe_allow_html=True)
 
         with c2:
+            # Stats
             st.markdown("<p class='label'>● BULL VS BEAR DOMINANCE</p>", unsafe_allow_html=True)
             st.markdown(f"""<div class='kz-card'><div style='display:flex; justify-content:space-between;'><small>IMPULSE M15</small><small style='color:{status_color};'>{m15_imp:+.3f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{bull_score}%'></div></div></div>""", unsafe_allow_html=True)
             
@@ -134,9 +148,12 @@ def sync_terminal():
             st.metric("REAL YIELDS", f"{yields:.2f}%")
             st.metric("VIX INDEX", f"{vix:.2f}")
             
-            st.markdown("<p class='label'>● ECONOMIC CALENDAR</p>", unsafe_allow_html=True)
-            st.markdown("<div class='kz-card' style='padding:8px;'><div class='cal-header'><span>EVENT</span><span>ACT</span><span>EXP</span></div>" + 
-                "".join([f"<div class='cal-row'><span>{n.title[:5]}</span><span style='color:#00ff88;'>--</span><span style='color:#555;'>--</span></div>" for n in feed.entries[:2]]) + "</div>", unsafe_allow_html=True)
+            # --- CALENDAR RESTORED ---
+            st.markdown("<p class='label'>● ECONOMIC CALENDAR (LIVE)</p>", unsafe_allow_html=True)
+            st.markdown("<div class='kz-card' style='padding:8px;'><div class='cal-header'><span class='cal-col-ev'>EVENT</span><span class='cal-col-val'>ACT</span><span class='cal-col-val'>EXP</span></div>", unsafe_allow_html=True)
+            for ev in (cal_data if cal_data else [{"name": "NO DATA", "act": "--", "exp": "--", "col": "#444"}]):
+                st.markdown(f"<div class='cal-row'><span class='cal-col-ev'><span style='color:{ev['col']};'>●</span> {ev['name']}</span><span class='cal-col-val' style='color:#00ff88;'>{ev['act']}</span><span class='cal-col-val' style='color:#555;'>{ev['exp']}</span></div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown(f"<div style='background:{status_color}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {status_text}</div>", unsafe_allow_html=True)
 
