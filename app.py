@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V98 ULTRA-STATIC)
+# 1. Configuration & Design System (V99 RENDER FIX & FULL INTEL)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 if 'trades' not in st.session_state:
@@ -15,7 +15,7 @@ if 'trades' not in st.session_state:
 if 'last_m5_ts' not in st.session_state:
     st.session_state.last_m5_ts = None
 
-# CSS ANTI-SCINTILLEMENT (VERROUILLÉ)
+# CSS ANTI-SCINTILLEMENT & CORRECTION OVERFLOW
 st.markdown("""
 <style>
     :root {
@@ -34,13 +34,14 @@ st.markdown("""
     .dom-container { background: #080808; border: 1px solid #151515; border-radius: 6px; padding: 20px; margin-bottom: 15px; }
     .flow-row { margin-bottom: 22px; position: relative; }
     .flow-meta { display: flex; justify-content: space-between; font-family: 'JetBrains Mono'; font-size: 16px; font-weight: bold; margin-bottom: 2px; }
-    .flow-bar-bg { height: 14px; background: #ff4b4b; border-radius: 2px; overflow: hidden; display: flex; position: relative; }
-    .flow-bar-fill { height: 100%; background: #00ff88; transition: 0.5s; }
     
-    /* BADGE LABELLISÉ (NOUVEAU) */
+    /* CORRECTION ICI : overflow: visible; au lieu de hidden pour ne plus couper le texte */
+    .flow-bar-bg { height: 14px; background: #ff4b4b; border-radius: 2px; overflow: visible; display: flex; position: relative; }
+    .flow-bar-fill { height: 100%; background: #00ff88; transition: 0.5s; border-radius: 2px 0 0 2px; }
+    
     .leaning-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10; 
-                     background: rgba(10,10,10,0.95); border: 1px solid #222; padding: 2px 12px; border-radius: 4px; text-align: center; min-width: 130px; }
-    .tf-label { font-size: 7px; color: #555; font-weight: bold; text-transform: uppercase; margin-bottom: -2px; }
+                     background: rgba(10,10,10,0.95); border: 1px solid #222; padding: 4px 14px; border-radius: 4px; text-align: center; min-width: 140px; }
+    .tf-label { font-size: 7px; color: #555; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; }
     .leaning-text { font-size: 8px; font-weight: 900; text-transform: uppercase; }
     
     .matrix-row { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 15, 15, 0.8); border: 1px solid #1a1a1a; margin-bottom: 5px; padding: 12px 18px; border-radius: 4px; }
@@ -102,7 +103,7 @@ def sync_terminal():
             st.session_state.last_m5_ts = curr_m5
 
         # --- RENDER ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V98 LABELLED DOMINANCE | SOLDE: 953.55 GBP</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V99 DISPLAY FIXED | FULL INTEL</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -111,25 +112,25 @@ def sync_terminal():
             prog = (math.log(cap/100) / math.log(1000000/100)) * 100
             st.markdown(f"<div style='margin-bottom:15px;'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
             
-            # --- BULL VS BEAR DOMINANCE (WITH TF LABELS) ---
+            # --- BULL VS BEAR DOMINANCE ---
             st.markdown(f"""
             <div class="dom-container">
                 <div style="display:flex; justify-content:space-between; margin-bottom:20px;"><div style="color:#e0e0e0; font-size:11px; font-weight:bold; letter-spacing:2px;">● BULL VS BEAR · DOMINANCE</div></div>
                 <div class="flow-row">
                     <div class="flow-meta"><span style="color:#00ff88;">{h4_s}%</span><span style="color:#ff4b4b;">{100-h4_s}%</span></div>
-                    <div class="flow-bar-bg"><div style="width:{h4_s}%; background:#00ff88;"></div>
+                    <div class="flow-bar-bg"><div class="flow-bar-fill" style="width:{h4_s}%;"></div>
                         <div class="leaning-badge"><div class="tf-label">FLUX H4</div><div class="leaning-text" style="color:#00ff88;">LEANING BULLISH</div></div>
                     </div>
                 </div>
                 <div class="flow-row">
                     <div class="flow-meta"><span style="color:#00ff88;">{h2_s}%</span><span style="color:#ff4b4b;">{100-h2_s}%</span></div>
-                    <div class="flow-bar-bg"><div style="width:{h2_s}%; background:#00ff88;"></div>
+                    <div class="flow-bar-bg"><div class="flow-bar-fill" style="width:{h2_s}%;"></div>
                         <div class="leaning-badge"><div class="tf-label">FLUX H2</div><div class="leaning-text" style="color:#00ff88;">LEANING BULLISH</div></div>
                     </div>
                 </div>
                 <div class="flow-row">
                     <div class="flow-meta"><span style="color:#00ff88;">{m15_s:.1f}%</span><span style="color:#ff4b4b;">{100-m15_s:.1f}%</span></div>
-                    <div class="flow-bar-bg"><div style="width:{m15_s}%; background:#00ff88;"></div>
+                    <div class="flow-bar-bg"><div class="flow-bar-fill" style="width:{m15_s}%;"></div>
                         <div class="leaning-badge"><div class="tf-label">FLUX M15</div><div class="leaning-text" style="color:{'#00ff88' if m15_s > 50 else '#ff4b4b'};">LEANING {'BULLISH' if m15_s > 50 else 'BEARISH'}</div></div>
                     </div>
                 </div>
@@ -185,12 +186,32 @@ def sync_terminal():
             for n in feed.entries[:5]:
                 st.markdown(f"<div style='font-size:9px; border-bottom:1px solid #111; padding:5px 0;'>🕒 {n.published[17:22]} | {n.title[:45]}...</div>", unsafe_allow_html=True)
 
-            # --- INTEL SECTION ---
+            # --- INTEL SECTION (FULL TEXT RESTORED) ---
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase; margin-top:15px;'>● STRATEGY INTEL & DEFINITIONS</p>", unsafe_allow_html=True)
+            
             st.markdown("""
-            <div class="intel-box"><div style="font-size:9px; font-weight:900; color:#ffb000; text-transform:uppercase; margin-bottom:5px;">📊 PRESSURE BARS</div><div style="font-size:10px; color:#888; line-height:1.4;"><b>H4 Trend :</b> Biais macro.<br><b>H2 Flow :</b> Flux intermédiaire.<br><b>M15 Momentum :</b> Timing d'entrée.</div></div>
-            <div class="intel-box"><div style="font-size:9px; font-weight:900; color:#ffb000; text-transform:uppercase; margin-bottom:5px;">⚙️ VOLUME PROFILE</div><div style="font-size:10px; color:#888; line-height:1.4;"><b>POC :</b> Pivot institutionnel.<br><b>VA :</b> Zone de 70% du volume.</div></div>
-            <div class="intel-box"><div style="font-size:9px; font-weight:900; color:#ffb000; text-transform:uppercase; margin-bottom:5px;">🌍 GOLD MACRO</div><div style="font-size:10px; color:#888; line-height:1.4;">Bullish: BRICS+ / CB.<br>Bearish: Inflation / Fed.</div></div>
+            <div class="intel-box">
+                <div style="font-size:9px; font-weight:900; color:#ffb000; text-transform:uppercase; margin-bottom:5px;">📊 PRESSURE BARS DEFINITION</div>
+                <div style="font-size:10px; color:#888; line-height:1.4;">
+                    <b>H4 Trend :</b> Macro-tendance de fond. Définit le biais directionnel majeur.<br>
+                    <b>H2 Flow :</b> Flux directionnel intermédiaire. Confirme ou infirme la tendance H4.<br>
+                    <b>M15 Momentum :</b> Réactivité intraday. Crucial pour le timing d'entrée (Execution Layer).
+                </div>
+            </div>
+            <div class="intel-box">
+                <div style="font-size:9px; font-weight:900; color:#ffb000; text-transform:uppercase; margin-bottom:5px;">⚙️ VOLUME PROFILE ADVANCED</div>
+                <div style="font-size:10px; color:#888; line-height:1.4;">
+                    <b>POC (Point of Control) :</b> Prix pivot attirant le maximum de liquidité institutionnelle.<br>
+                    <b>Value Area (VA) :</b> Zone de 70% de l'activité. Un breakout de la VAH/VAL signale l'initiation d'un flux directionnel majeur.
+                </div>
+            </div>
+            <div class="intel-box">
+                <div style="font-size:9px; font-weight:900; color:#ffb000; text-transform:uppercase; margin-bottom:5px;">🌍 GOLD MACRO SYNTHESIS (MAY 2026)</div>
+                <div style="font-size:10px; color:#888; line-height:1.4;">
+                    <b>BULLISH :</b> Demande souveraine record des BRICS+ et dé-dollarisation structurelle.<br>
+                    <b>BEARISH :</b> Résilience de l'inflation obligeant la Fed à maintenir des Yields réels élevés, pesant sur l'attractivité de l'Or.
+                </div>
+            </div>
             """, unsafe_allow_html=True)
 
         st.markdown(f"<div style='background:{sig_col}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {sig_label} | {bull_score:.1f}%</div>", unsafe_allow_html=True)
