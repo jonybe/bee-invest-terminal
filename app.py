@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-# 1. Configuration & Design System (V54 LOCKED)
+# 1. Configuration & Design System (V55 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -23,7 +23,7 @@ st.markdown("""
     .m-badge-blue { padding: 4px 10px; border-radius: 12px; font-size: 8.5px; font-weight: bold; text-transform: uppercase; background: rgba(88, 166, 255, 0.1); color: #58a6ff; border: 1px solid #58a6ff33; width: 110px; text-align: center; }
     
     .bar-container { background: #1a1a1a; height: 6px; border-radius: 3px; margin: 4px 0 10px 0; overflow: hidden; display: flex; }
-    .p-bull { background: #00ff88; height: 100%; transition: 0.2s; } /* Reactivité accrue */
+    .p-bull { background: #00ff88; height: 100%; transition: 0.2s; } 
     .p-bear { background: #ff4b4b; height: 100%; transition: 0.2s; }
     .legende-centrale { font-size: 11px; color: #888; line-height: 1.6; padding: 15px; background: #0a0a0a; border-radius: 4px; border-left: 4px solid #ffb000; margin: 15px 0; }
     .status-tag { padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; }
@@ -35,9 +35,11 @@ def get_market_data():
     try:
         t = yf.Ticker("GC=F")
         gold = t.fast_info['last_price']
-        df_h2 = t.history(period="10d", interval="1h").resample('2h').agg({'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'}).dropna()
         
-        # M15 ULTRA-REACTIF (Analyse sur 30min pour coller au Killzone)
+        # CHANGEMENT : Graphique en H1 (60m)
+        df_h1 = t.history(period="5d", interval="60m").dropna()
+        
+        # M15 ULTRA-REACTIF (Analyse sur 30min)
         df_m15 = t.history(period="1d", interval="15m")
         m15_imp = ((df_m15['Close'].iloc[-1] - df_m15['Close'].iloc[-3]) / df_m15['Close'].iloc[-3]) * 100
         
@@ -55,21 +57,23 @@ def get_market_data():
         news = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:4]
         text = " ".join([n.title.lower() for n in news])
         geo, cb, etf = (32.5, 21.4, 11.2) if "war" in text or "tension" in text else (28.0, 18.0, 9.0)
-        h4_p = min(max(50 + ((df_h2['Close'].iloc[-1] - df_h2['Close'].mean())/2), 10), 90)
         
-        return gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h2, ph, pl, poc, change, m15_imp
+        # Pression H4 simulée pour le sensor
+        h4_p = min(max(50 + ((df_h1['Close'].iloc[-1] - df_h1['Close'].mean())/2), 10), 90)
+        
+        return gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h1, ph, pl, poc, change, m15_imp
     except: return None
 
 data = get_market_data()
 
 if data:
-    gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h2, ph, pl, poc, g_change, m15_imp = data
+    gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h1, ph, pl, poc, g_change, m15_imp = data
     cap, risk_pct = 959.56, 0.06
     sl_dyn = max(vol_atr * 0.5, 15.0)
     perte_gbp = cap * risk_pct
     lot = perte_gbp / (sl_dyn * 10)
     
-    # CALCUL DE FORCE ULTRA-REACTIF (Multiplier x25 pour le M15)
+    # CALCUL DE FORCE ULTRA-REACTIF (x25 sur le M15)
     drag = (dxy - 100) + (yields * 5)
     bull_score = min(max((geo + cb + etf) - drag + (m15_imp * 25), 10), 100)
     
@@ -77,7 +81,7 @@ if data:
     status_color = "#ffb000" if "NEUTRAL" in status_text else "#00ff88" if "BULL" in status_text else "#ff4b4b"
 
     # Header
-    st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V54 MASTER LAYOUT | REACTIVE ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V55 H1 PRECISION | REACTIVE ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
     st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
     col_main, col_side = st.columns([2, 1])
@@ -90,15 +94,15 @@ if data:
         # LEGENDE
         st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
 
-        # CHART
-        fig = go.Figure(data=[go.Candlestick(x=df_h2.index, open=df_h2['Open'], high=df_h2['High'], low=df_h2['Low'], close=df_h2['Close'])])
+        # CHART H1
+        fig = go.Figure(data=[go.Candlestick(x=df_h1.index, open=df_h1['Open'], high=df_h1['High'], low=df_h1['Low'], close=df_h1['Close'], name="H1")])
         fig.add_hline(y=ph, line_dash="dash", line_color="#ff4b4b")
         fig.add_hline(y=pl, line_dash="dash", line_color="#00ff88")
         fig.add_hline(y=poc, line_color="#ffb000", line_width=2)
         fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=320, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-        # TARGETS & PROJECTION (Restaurés)
+        # TARGETS & PROJECTION
         st.markdown("<p class='label'>● PARAMÈTRES D'EXÉCUTION & PROJECTION FINANCIÈRE</p>", unsafe_allow_html=True)
         c_t1, c_t2 = st.columns(2)
         with c_t1:
@@ -144,10 +148,10 @@ if data:
         st.markdown(f"""
         <div class="intel-desk-sidebar">
             <p class='label' style='color:#ffb000; margin-bottom:10px;'>⚔️ STRATEGIC INTEL</p>
-            <div style="font-size:10px; color:#aaa;">
-                <b>POSITION :</b> RR 3.24 (Entry @ POC).<br>
-                <b>MICRO-FLASH :</b> Réactivité boostée (x25). <br>
-                <i style="color:#777;">Si divergence, attends que le M15 s'aligne.</i>
+            <div style="font-size:10px; line-height:1.4; color:#aaa;">
+                <b>MODE H1 ACTIVÉ :</b> Lecture précise du flux horaire.<br>
+                <b>MICRO-FLASH :</b> Réactivité ultra-sensible (x25). <br>
+                <i style="color:#777;">Le terminal détectera la sortie du POC plus vite.</i>
             </div>
         </div>
         """, unsafe_allow_html=True)
