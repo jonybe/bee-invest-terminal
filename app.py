@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-# 1. Configuration & Design System (V55 LOCKED)
+# 1. Configuration & Design System (V57 LOCKED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 st.markdown("""
@@ -36,17 +36,40 @@ def get_market_data():
         t = yf.Ticker("GC=F")
         gold = t.fast_info['last_price']
         
-        # CHANGEMENT : Graphique en H1 (60m)
+        # Graphique H1
         df_h1 = t.history(period="5d", interval="60m").dropna()
         
-        # M15 ULTRA-REACTIF (Analyse sur 30min)
+        # M15 Ultra-Réactif
         df_m15 = t.history(period="1d", interval="15m")
         m15_imp = ((df_m15['Close'].iloc[-1] - df_m15['Close'].iloc[-3]) / df_m15['Close'].iloc[-3]) * 100
         
-        yesterday = t.history(period="2d", interval="60m")
-        ph, pl = yesterday.iloc[:int(len(yesterday)/2)]['High'].max(), yesterday.iloc[:int(len(yesterday)/2)]['Low'].min()
-        poc = yesterday.iloc[:int(len(yesterday)/2)]['Close'].mode().iloc[0]
+        # --- STRATÉGIE VOLUME PROFILE : POC + VALUE AREA (70%) ---
+        vp_data = t.history(period="2d", interval="15m")
+        session_data = vp_data.tail(96) 
         
+        ph, pl = session_data['High'].max(), session_data['Low'].min()
+        
+        # Calcul des bins de volume
+        bins_count = 35
+        price_bins = pd.cut(session_data['Close'], bins=bins_count)
+        bin_volumes = session_data.groupby(price_bins, observed=True)['Volume'].sum()
+        
+        # 1. Calcul du POC (Point of Control)
+        poc_price = bin_volumes.idxmax().mid
+        
+        # 2. Calcul de la Value Area (VAH / VAL) - 70% du Volume
+        total_vol = bin_volumes.sum()
+        sorted_bins = bin_volumes.sort_values(ascending=False)
+        cum_vol = sorted_bins.cumsum()
+        va_bins = sorted_bins[cum_vol <= (total_vol * 0.70)]
+        
+        # Fallback si zone trop étroite
+        if len(va_bins) < 2: va_bins = sorted_bins.head(5)
+        
+        vah = va_bins.index.categories.right.max()
+        val = va_bins.index.categories.left.min()
+        # ---------------------------------------------------------
+
         hist = t.history(period="5d")
         vol_atr = (hist['High'] - hist['Low']).mean()
         change = ((gold - hist['Close'].iloc[-1]) / hist['Close'].iloc[-1]) * 100
@@ -58,22 +81,20 @@ def get_market_data():
         text = " ".join([n.title.lower() for n in news])
         geo, cb, etf = (32.5, 21.4, 11.2) if "war" in text or "tension" in text else (28.0, 18.0, 9.0)
         
-        # Pression H4 simulée pour le sensor
         h4_p = min(max(50 + ((df_h1['Close'].iloc[-1] - df_h1['Close'].mean())/2), 10), 90)
         
-        return gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h1, ph, pl, poc, change, m15_imp
+        return gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h1, ph, pl, poc, vah, val, change, m15_imp
     except: return None
 
 data = get_market_data()
 
 if data:
-    gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h1, ph, pl, poc, g_change, m15_imp = data
+    gold, dxy, yields, news, vol_atr, h4_p, geo, cb, etf, df_h1, ph, pl, poc, vah, val, g_change, m15_imp = data
     cap, risk_pct = 959.56, 0.06
     sl_dyn = max(vol_atr * 0.5, 15.0)
     perte_gbp = cap * risk_pct
     lot = perte_gbp / (sl_dyn * 10)
     
-    # CALCUL DE FORCE ULTRA-REACTIF (x25 sur le M15)
     drag = (dxy - 100) + (yields * 5)
     bull_score = min(max((geo + cb + etf) - drag + (m15_imp * 25), 10), 100)
     
@@ -81,7 +102,7 @@ if data:
     status_color = "#ffb000" if "NEUTRAL" in status_text else "#00ff88" if "BULL" in status_text else "#ff4b4b"
 
     # Header
-    st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V55 H1 PRECISION | REACTIVE ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V57 VOLUME PROFILE STRATEGY | LOCKED</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{status_color}22; color:{status_color}; border:1px solid {status_color};'>{status_text}</span></div></div>""", unsafe_allow_html=True)
     st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
     col_main, col_side = st.columns([2, 1])
@@ -90,15 +111,23 @@ if data:
         # ROADMAP
         prog = (math.log(cap/100) / math.log(1000000/100)) * 100
         st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
-        
-        # LEGENDE
         st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
 
-        # CHART H1
+        # CHART H1 + VOLUME PROFILE (POC & VALUE AREA)
         fig = go.Figure(data=[go.Candlestick(x=df_h1.index, open=df_h1['Open'], high=df_h1['High'], low=df_h1['Low'], close=df_h1['Close'], name="H1")])
-        fig.add_hline(y=ph, line_dash="dash", line_color="#ff4b4b")
-        fig.add_hline(y=pl, line_dash="dash", line_color="#00ff88")
-        fig.add_hline(y=poc, line_color="#ffb000", line_width=2)
+        
+        # 1. Les Limites de la Veille
+        fig.add_hline(y=ph, line_dash="dash", line_color="#ff4b4b", opacity=0.5)
+        fig.add_hline(y=pl, line_dash="dash", line_color="#00ff88", opacity=0.5)
+        
+        # 2. Le POC (Point de Contrôle)
+        fig.add_hline(y=poc, line_color="#ffb000", line_width=2.5, annotation_text="POC")
+        
+        # 3. La Value Area (Zone de 70% du Volume)
+        fig.add_hrect(y0=val, y1=vah, fillcolor="rgba(255, 255, 255, 0.05)", line_width=0, annotation_text="VALUE AREA (70%)", annotation_position="top left")
+        fig.add_hline(y=vah, line_color="rgba(255, 255, 255, 0.2)", line_dash="dot")
+        fig.add_hline(y=val, line_color="rgba(255, 255, 255, 0.2)", line_dash="dot")
+
         fig.update_layout(template="plotly_dark", paper_bgcolor="#050505", plot_bgcolor="#050505", height=320, margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=False)
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
@@ -118,7 +147,7 @@ if data:
                 📊 <b>LOT CONSEILLÉ :</b> {lot:.2f}
             </div>""", unsafe_allow_html=True)
 
-        # MATRIX ROADMAP (Bleu/Rouge)
+        # MATRIX ROADMAP
         st.markdown("<p class='label'>● MATRIX ROADMAP : ÉVOLUTION DU CAPITAL RÉEL</p>", unsafe_allow_html=True)
         tr = cap
         now = datetime.now()
@@ -137,10 +166,9 @@ if data:
         
         # SENSORS
         st.markdown("<p class='label'>● PRESSURE SENSORS</p>", unsafe_allow_html=True)
-        for ut, pr in [("H4 TREND", h4_p), ("H2 FLOW", h4_p-5), ("M15 MOMENTUM", h4_p+(m15_imp*25))]:
+        for ut, pr in [("H4 TREND", h4_p), ("H2 FLOW", h4_p-5), ("M15 MOMENTUM", h4_p+(m15_imp * 25))]:
             st.markdown(f"<div style='display:flex; justify-content:space-between;'><small>{ut}</small><small>{pr:.1f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{pr}%'></div></div>", unsafe_allow_html=True)
         
-        # NEWS & INTEL SIDEBAR
         st.markdown("<p class='label'>● NEWS STREAM</p>", unsafe_allow_html=True)
         for n in news[:3]:
             st.markdown(f"<div style='font-size:10px; border-bottom:1px solid #111; padding:3px 0;'>🕒 {n.published[5:11]} | {n.title[:50]}...</div>", unsafe_allow_html=True)
@@ -149,9 +177,8 @@ if data:
         <div class="intel-desk-sidebar">
             <p class='label' style='color:#ffb000; margin-bottom:10px;'>⚔️ STRATEGIC INTEL</p>
             <div style="font-size:10px; line-height:1.4; color:#aaa;">
-                <b>MODE H1 ACTIVÉ :</b> Lecture précise du flux horaire.<br>
-                <b>MICRO-FLASH :</b> Réactivité ultra-sensible (x25). <br>
-                <i style="color:#777;">Le terminal détectera la sortie du POC plus vite.</i>
+                <b>VALUE AREA ACTIVE :</b> La zone grise représente 70% du volume échangé ces dernières 24h.<br>
+                <i style="color:#777;">Tant que le prix est dans la VA, le marché est en équilibre. Une sortie de la VA indique un flux directionnel puissant.</i>
             </div>
         </div>
         """, unsafe_allow_html=True)
