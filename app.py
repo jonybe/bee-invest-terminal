@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V86 ANTI-FLICKER OMEGA)
+# 1. Configuration & Design System (V87 OMEGA STABLE)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 if 'trades' not in st.session_state:
@@ -15,45 +15,46 @@ if 'trades' not in st.session_state:
 if 'last_m5_ts' not in st.session_state:
     st.session_state.last_m5_ts = None
 
-# CSS RADICAL POUR STOPPER LE CLIGNOTEMENT
 st.markdown("""
 <style>
-    /* Désactivation totale des effets de chargement Streamlit */
-    div[data-testid="stAppViewBlockContainer"], 
-    div[data-testid="stVerticalBlock"],
-    div[data-fragment-component-id] {
-        opacity: 1 !important;
-        transition: none !important;
-        filter: none !important;
+    /* ANTI-FLICKER OMEGA */
+    div[data-testid="stAppViewBlockContainer"], div[data-testid="stVerticalBlock"], div[data-fragment-component-id] {
+        opacity: 1 !important; transition: none !important; filter: none !important;
     }
     
-    /* Empêche le voile sombre spécifique aux fragments */
-    .st-emotion-cache-z5fcl4, .st-emotion-cache-16ids99 {
-        opacity: 1 !important;
-        transition: none !important;
-    }
-
-    html, body, [data-testid="stAppViewContainer"] { 
-        background-color: #050505 !important; 
-        color: #e0e0e0; 
-        font-family: 'Inter', sans-serif; 
-        font-size: 11.5px; 
-    }
-
+    html, body, [data-testid="stAppViewContainer"] { background-color: #050505 !important; color: #e0e0e0; font-family: 'Inter', sans-serif; font-size: 11.5px; }
     .block-container { padding-top: 3.5rem !important; padding-bottom: 0rem !important; }
     .kz-card { background: #0d0d0d; border: 1px solid #1a1a1a; padding: 12px; border-radius: 4px; margin-bottom: 8px; }
     .label { color: #555; font-size: 9px; text-transform: uppercase; font-weight: bold; letter-spacing: 1.2px; }
     .val-quant { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: bold; color: #00ff88; }
+    
+    /* MARKET REGIME DESIGN SYSTEM (IMAGE CLONE) */
+    .regime-box { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 8px; padding: 15px; margin-bottom: 10px; }
+    .regime-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #1a1a1a; padding-bottom: 8px; }
+    .regime-title { color: #e0e0e0; font-size: 10px; font-weight: bold; letter-spacing: 1.5px; display: flex; align-items: center; }
+    .dot { height: 4px; width: 4px; background: #ffb000; border-radius: 50%; margin-right: 8px; }
+    
+    .regime-cards-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+    .regime-card { background: #111; border: 1px solid #1a1a1a; border-radius: 6px; padding: 12px 5px; text-align: center; color: #444; transition: 0.3s; }
+    .regime-card.active { border: 1px solid #ffb000; color: #e0e0e0; background: rgba(255, 176, 0, 0.05); box-shadow: inset 0 0 10px rgba(255,176,0,0.05); }
+    .regime-card i { display: block; font-size: 14px; margin-bottom: 8px; }
+    .regime-card span { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    .strategy-alert { border: 1px solid #ffb000; border-left: 3px solid #ffb000; padding: 12px; border-radius: 4px; background: rgba(255, 176, 0, 0.02); color: #e0e0e0; font-size: 11px; margin-bottom: 15px; }
+    
+    .regime-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px dashed #1a1a1a; padding-top: 12px; }
+    .rm-item { text-align: left; }
+    .rm-label { color: #444; font-size: 8px; font-weight: bold; text-transform: uppercase; }
+    .rm-val { color: #e0e0e0; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: bold; margin: 2px 0; }
+    .rm-sub { color: #333; font-size: 8.5px; font-style: italic; }
+
     .matrix-row { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 15, 15, 0.8); border: 1px solid #1a1a1a; margin-bottom: 5px; padding: 12px 18px; border-radius: 4px; }
     .m-id { color: #ffb000; font-family: 'JetBrains Mono'; font-weight: 900; width: 45px; font-size: 14px; }
-    .m-badge-red { padding: 4px 10px; border-radius: 12px; font-size: 8.5px; font-weight: bold; text-transform: uppercase; background: rgba(255, 75, 75, 0.1); color: #ff4b4b; border: 1px solid rgba(255, 75, 75, 0.2); width: 110px; text-align: center; }
     .m-badge-blue { padding: 4px 10px; border-radius: 12px; font-size: 8.5px; font-weight: bold; text-transform: uppercase; background: rgba(88, 166, 255, 0.1); color: #58a6ff; border: 1px solid #58a6ff33; width: 110px; text-align: center; }
+    .m-badge-red { padding: 4px 10px; border-radius: 12px; font-size: 8.5px; font-weight: bold; text-transform: uppercase; background: rgba(255, 75, 75, 0.1); color: #ff4b4b; border: 1px solid rgba(255, 75, 75, 0.2); width: 110px; text-align: center; }
     .bar-container { background: #1a1a1a; height: 6px; border-radius: 3px; margin: 4px 0 10px 0; overflow: hidden; display: flex; }
     .p-bull { background: #00ff88; height: 100%; transition: 0.2s; } 
-    .status-tag { padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; }
-    .macro-note { font-size: 9px; color: #666; margin-top: -8px; margin-bottom: 12px; font-style: italic; border-left: 2px solid #333; padding-left: 8px; }
     .cal-header { display: flex; font-size: 8px; color: #444; border-bottom: 1px solid #222; padding-bottom: 4px; margin-bottom: 5px; font-weight: bold; }
-    .cal-col-ev { width: 50%; } .cal-col-val { width: 25%; text-align: right; }
     .cal-row { display: flex; font-size: 10px; padding: 6px 0; border-bottom: 1px solid #111; align-items: center; }
 </style>
 """, unsafe_allow_html=True)
@@ -91,16 +92,22 @@ def sync_terminal():
         sig_label = "ACHAT" if bull_score > 58 else "VENTE" if bull_score < 42 else "ATTENTE"
         sig_col = "#00ff88" if sig_label == "ACHAT" else "#ff4b4b" if sig_label == "VENTE" else "#ffb000"
 
-        # 4. WEEKLY CALENDAR
+        # REGIME LOGIC
+        regime = "RANGE" if 45 < bull_score < 55 and vix < 20 else "TRENDING" if bull_score >= 58 or bull_score <= 42 else "VOL EXPANSION"
+        strat_txt = "Neutral — Sideways / Wait for Liquidity"
+        if sig_label == "ACHAT": strat_txt = "Strong — Lean Long / Increase Gold Exposure"
+        elif sig_label == "VENTE": strat_txt = "Weak — Lean Short / Reduce Gold Exposure"
+
+        # 4. CALENDAR
         cal_data = []
-        kw = ["PPI", "CPI", "PMI", "FED", "NFP", "JOBS", "RETAIL"]
-        for n in feed.entries[:25]:
+        kw = ["PPI", "CPI", "PMI", "FED", "NFP", "JOBS"]
+        for n in feed.entries[:15]:
             title = n.title.upper()
             if any(k in title for k in kw):
                 ev_name = next((k for k in kw if k in title), "DATA")
                 if not any(d['name'] == ev_name for d in cal_data):
                     nums = re.findall(r'\d+\.\d+', title)
-                    cal_data.append({"name": ev_name, "act": nums[-1]+"%" if nums else "TBD", "exp": nums[0]+"%" if len(nums)>1 else "--", "col": "#ff4b4b" if "FED" in ev_name or "CPI" in ev_name else "#ffb000"})
+                    cal_data.append({"name": ev_name, "act": nums[-1]+"%" if nums else "TBD", "exp": nums[0]+"%" if len(nums)>1 else "--", "col": "#ff4b4b" if any(x in ev_name for x in ["FED","CPI"]) else "#ffb000"})
 
         # 5. TRADES
         active_trades = []
@@ -121,7 +128,7 @@ def sync_terminal():
             st.session_state.last_m5_ts = curr_m5
 
         # --- RENDER UI ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V86 OMEGA STABLE | NO FLICKER</small></div><div class='val-quant'>{gold:,.2f} $ <span class='status-tag' style='background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V87 REGIME MODULE | M5 ENGINE</small></div><div class='val-quant'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -129,7 +136,7 @@ def sync_terminal():
             cap = 960.23
             prog = (math.log(cap/100) / math.log(1000000/100)) * 100
             st.markdown(f"<div class='roadmap-box'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
-            st.markdown(f"""<div class="legende-centrale"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="font-size: 11px; color: #888; line-height: 1.6; padding: 15px; background: #0a0a0a; border-radius: 4px; border-left: 4px solid #ffb000; margin: 15px 0;"><b style="color:#ffb000;">⚖️ PROTOCOLE :</b> 🟢 ACHAT > 58% | 🔴 VENTE < 42% | RISQUE 6%.</div>""", unsafe_allow_html=True)
 
             # CHART
             fig = go.Figure()
@@ -144,7 +151,7 @@ def sync_terminal():
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
             # TRADES
-            st.markdown("<p class='label'>● ACTIVE STRATEGIC SETUPS (M5 CLOSE TRIGGER)</p>", unsafe_allow_html=True)
+            st.markdown("<p class='label'>● ACTIVE STRATEGIC SETUPS (M5 CLOSE)</p>", unsafe_allow_html=True)
             if st.session_state.trades:
                 tc1, tc2 = st.columns(2)
                 for idx, tr in enumerate(st.session_state.trades):
@@ -162,7 +169,51 @@ def sync_terminal():
                 st.markdown(f"""<div class="matrix-row"><div class="m-id">P{i:02}</div><div style="width:200px; color:white; font-weight:bold;">{tr_m:,.0f} £ <span style="color:#444; font-weight:normal; font-size:10px;">/ {tr_g:,.0f} £</span></div><div style="color:#00ff88; font-weight:bold;">LOT: {(tr_m*0.06)/120:.2f}</div>{f"<div class='m-badge-blue'>SORTIE: {ret:,.0f}£</div>" if ret > 0 else "<div class='m-badge-red'>ACCUMULATION</div>"}</div>""", unsafe_allow_html=True)
 
         with c2:
-            st.markdown(f"<div style='display:flex; justify-content:space-between; font-weight:bold;'><span style='color:#555;'>BULL SCORE</span><span style='color:{sig_col};'>{sig_label} {bull_score:.1f}%</span></div>", unsafe_allow_html=True)
+            # --- MARKET REGIME CLONE ---
+            st.markdown(f"""
+            <div class="regime-box">
+                <div class="regime-header">
+                    <div class="regime-title"><div class="dot"></div> MARKET REGIME</div>
+                    <div style="color:#333; font-size:8px; font-weight:bold; letter-spacing:1px;">FROM LIVE SCORE REGIME</div>
+                </div>
+                <div class="regime-cards-container">
+                    <div class="regime-card {'active' if regime == 'RANGE' else ''}">
+                        <div style="font-size:14px; margin-bottom:5px;">⟷</div>
+                        <span>Range</span>
+                    </div>
+                    <div class="regime-card {'active' if regime == 'TRENDING' else ''}">
+                        <div style="font-size:14px; margin-bottom:5px;">↗</div>
+                        <span>Trending</span>
+                    </div>
+                    <div class="regime-card {'active' if regime == 'VOL EXPANSION' else ''}">
+                        <div style="font-size:14px; margin-bottom:5px;">~</div>
+                        <span>Vol Expansion</span>
+                    </div>
+                </div>
+                <div class="strategy-alert">
+                    {strat_txt}
+                </div>
+                <div class="regime-metrics">
+                    <div class="rm-item">
+                        <div class="rm-label">Real Yield</div>
+                        <div class="rm-val">{yields:.2f}%</div>
+                        <div class="rm-sub">live macro feed</div>
+                    </div>
+                    <div class="rm-item">
+                        <div class="rm-label">Vix</div>
+                        <div class="rm-val">{vix:.1f}</div>
+                        <div class="rm-sub">risk proxy</div>
+                    </div>
+                    <div class="rm-item">
+                        <div class="rm-label">USD Broad</div>
+                        <div class="rm-val">{dxy:.1f}</div>
+                        <div class="rm-sub">dollar pressure</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown(f"<div style='display:flex; justify-content:space-between; font-weight:bold; margin-top:10px;'><span style='color:#555;'>BULL SCORE</span><span style='color:{sig_col};'>{sig_label} {bull_score:.1f}%</span></div>", unsafe_allow_html=True)
             st.markdown(f"<div class='bar-container'><div class='p-bull' style='width:{bull_score}%; background:{sig_col};'></div></div>", unsafe_allow_html=True)
             
             st.markdown("<p class='label'>● PRESSURE SENSORS (RAW)</p>", unsafe_allow_html=True)
@@ -171,17 +222,10 @@ def sync_terminal():
             
             st.markdown("<p class='label'>● FUNDAMENTAL SCORES</p>", unsafe_allow_html=True)
             st.markdown(f"""<div class='kz-card'><div style='display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center;'><div><small>GEO</small><br><b>{geo}</b></div><div><small>FED</small><br><b>{cb}</b></div><div><small>ETF</small><br><b>{etf}</b></div></div><div style='display:flex; justify-content:space-between; margin-top:5px;'><small>SENTIMENT</small><small style='color:#00ff88;'>{fund_sent:.1f}%</small></div><div class='bar-container'><div class='p-bull' style='width:{fund_sent}%'></div></div></div>""", unsafe_allow_html=True)
-
-            st.metric("DXY INDEX", f"{dxy:.2f}")
-            st.markdown("<div class='macro-note'>Vendre si DXY > 102.50. Chute = Bullish.</div>", unsafe_allow_html=True)
-            st.metric("REAL YIELDS", f"{yields:.2f}%")
-            st.markdown("<div class='macro-note'>Bullish si Yields < 4.0%.</div>", unsafe_allow_html=True)
-            st.metric("VIX INDEX", f"{vix:.2f}")
-            st.markdown("<div class='macro-note'>Safe Haven si VIX > 20.</div>", unsafe_allow_html=True)
             
             st.markdown("<p class='label'>● WEEKLY ECONOMIC CALENDAR</p>", unsafe_allow_html=True)
-            st.markdown("<div class='kz-card' style='padding:8px;'><div class='cal-header'><span class='cal-col-ev'>EVENT (WEEK)</span><span class='cal-col-val'>ACT</span><span class='cal-col-val'>EXP</span></div>" + 
-                "".join([f"<div class='cal-row'><span class='cal-col-ev'>● {ev['name']}</span><span class='cal-col-val' style='color:#00ff88;'>{ev['act']}</span><span class='cal-col-val' style='color:#555;'>{ev['exp']}</span></div>" for ev in cal_data[:5]]) + "</div>", unsafe_allow_html=True)
+            st.markdown("<div class='kz-card' style='padding:8px;'><div class='cal-header'><span class='cal-col-ev'>EVENT (WEEK)</span><span style='margin-left:auto;'>ACT / EXP</span></div>" + 
+                "".join([f"<div class='cal-row'><span>● {ev['name']}</span><span style='margin-left:auto; color:#00ff88;'>{ev['act']}</span></div>" for ev in cal_data[:3]]) + "</div>", unsafe_allow_html=True)
 
         st.markdown(f"<div style='background:{sig_col}; color:black; text-align:center; padding:10px; font-weight:900; border-radius:4px; margin-top:10px;'>VERDICT FINAL : {sig_label} | {bull_score:.1f}%</div>", unsafe_allow_html=True)
 
