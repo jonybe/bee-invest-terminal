@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V99 RENDER FIX & FULL INTEL)
+# 1. Configuration & Design System (V100 BADGE FIX & P07)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 if 'trades' not in st.session_state:
@@ -15,7 +15,7 @@ if 'trades' not in st.session_state:
 if 'last_m5_ts' not in st.session_state:
     st.session_state.last_m5_ts = None
 
-# CSS ANTI-SCINTILLEMENT & CORRECTION OVERFLOW
+# CSS ANTI-SCINTILLEMENT & DESIGN VERROUILLÉ
 st.markdown("""
 <style>
     :root {
@@ -35,12 +35,11 @@ st.markdown("""
     .flow-row { margin-bottom: 22px; position: relative; }
     .flow-meta { display: flex; justify-content: space-between; font-family: 'JetBrains Mono'; font-size: 16px; font-weight: bold; margin-bottom: 2px; }
     
-    /* CORRECTION ICI : overflow: visible; au lieu de hidden pour ne plus couper le texte */
     .flow-bar-bg { height: 14px; background: #ff4b4b; border-radius: 2px; overflow: visible; display: flex; position: relative; }
     .flow-bar-fill { height: 100%; background: #00ff88; transition: 0.5s; border-radius: 2px 0 0 2px; }
     
-    .leaning-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 10; 
-                     background: rgba(10,10,10,0.95); border: 1px solid #222; padding: 4px 14px; border-radius: 4px; text-align: center; min-width: 140px; }
+    /* BADGE LABELLISÉ : MODIFIÉ POUR SE PLACER AU-DESSUS DE LA BARRE */
+    .leaning-badge { z-index: 10; background: rgba(10,10,10,0.95); border: 1px solid #222; padding: 4px 14px; border-radius: 4px; text-align: center; min-width: 140px; }
     .tf-label { font-size: 7px; color: #555; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; }
     .leaning-text { font-size: 8px; font-weight: 900; text-transform: uppercase; }
     
@@ -103,7 +102,7 @@ def sync_terminal():
             st.session_state.last_m5_ts = curr_m5
 
         # --- RENDER ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V99 DISPLAY FIXED | FULL INTEL</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V100 BARS CLEARED | MATRIX P07</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -112,27 +111,33 @@ def sync_terminal():
             prog = (math.log(cap/100) / math.log(1000000/100)) * 100
             st.markdown(f"<div style='margin-bottom:15px;'><div style='display:flex; justify-content:space-between; font-size:10px;'><span>PROG: {prog:.2f}%</span><span style='color:#ffb000;'>SOLDE: {cap} £</span></div><div style='background:#222; height:6px; margin:5px 0;'><div style='background:#ffb000; height:100%; width:{prog}%;'></div></div></div>", unsafe_allow_html=True)
             
-            # --- BULL VS BEAR DOMINANCE ---
+            # --- BULL VS BEAR DOMINANCE (BADGES DÉGAGÉS AU DESSUS DES BARRES) ---
             st.markdown(f"""
             <div class="dom-container">
                 <div style="display:flex; justify-content:space-between; margin-bottom:20px;"><div style="color:#e0e0e0; font-size:11px; font-weight:bold; letter-spacing:2px;">● BULL VS BEAR · DOMINANCE</div></div>
                 <div class="flow-row">
-                    <div class="flow-meta"><span style="color:#00ff88;">{h4_s}%</span><span style="color:#ff4b4b;">{100-h4_s}%</span></div>
-                    <div class="flow-bar-bg"><div class="flow-bar-fill" style="width:{h4_s}%;"></div>
+                    <div class="flow-meta" style="align-items: center; margin-bottom: 8px;">
+                        <span style="color:#00ff88; flex:1; text-align:left;">{h4_s}%</span>
                         <div class="leaning-badge"><div class="tf-label">FLUX H4</div><div class="leaning-text" style="color:#00ff88;">LEANING BULLISH</div></div>
+                        <span style="color:#ff4b4b; flex:1; text-align:right;">{100-h4_s}%</span>
                     </div>
+                    <div class="flow-bar-bg"><div class="flow-bar-fill" style="width:{h4_s}%;"></div></div>
                 </div>
                 <div class="flow-row">
-                    <div class="flow-meta"><span style="color:#00ff88;">{h2_s}%</span><span style="color:#ff4b4b;">{100-h2_s}%</span></div>
-                    <div class="flow-bar-bg"><div class="flow-bar-fill" style="width:{h2_s}%;"></div>
+                    <div class="flow-meta" style="align-items: center; margin-bottom: 8px;">
+                        <span style="color:#00ff88; flex:1; text-align:left;">{h2_s}%</span>
                         <div class="leaning-badge"><div class="tf-label">FLUX H2</div><div class="leaning-text" style="color:#00ff88;">LEANING BULLISH</div></div>
+                        <span style="color:#ff4b4b; flex:1; text-align:right;">{100-h2_s}%</span>
                     </div>
+                    <div class="flow-bar-bg"><div class="flow-bar-fill" style="width:{h2_s}%;"></div></div>
                 </div>
                 <div class="flow-row">
-                    <div class="flow-meta"><span style="color:#00ff88;">{m15_s:.1f}%</span><span style="color:#ff4b4b;">{100-m15_s:.1f}%</span></div>
-                    <div class="flow-bar-bg"><div class="flow-bar-fill" style="width:{m15_s}%;"></div>
+                    <div class="flow-meta" style="align-items: center; margin-bottom: 8px;">
+                        <span style="color:#00ff88; flex:1; text-align:left;">{m15_s:.1f}%</span>
                         <div class="leaning-badge"><div class="tf-label">FLUX M15</div><div class="leaning-text" style="color:{'#00ff88' if m15_s > 50 else '#ff4b4b'};">LEANING {'BULLISH' if m15_s > 50 else 'BEARISH'}</div></div>
+                        <span style="color:#ff4b4b; flex:1; text-align:right;">{100-m15_s:.1f}%</span>
                     </div>
+                    <div class="flow-bar-bg"><div class="flow-bar-fill" style="width:{m15_s}%;"></div></div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:25px;">
                     <div style="background:#0a0a0a; border:1px solid #151515; padding:12px; border-top:2px solid #00ff88;"><div style="font-size:9px; color:#00ff88;">SUPPORTING</div><div style="font-family:JetBrains Mono; font-size:20px; font-weight:bold; color:#00ff88;">+{max(0, m15_imp*10):.2f}</div></div>
@@ -151,10 +156,10 @@ def sync_terminal():
                         st.markdown(f"""<div class='kz-card' style='border-left:3px solid {b_c};'><b style='color:{b_c};'>{tr['type']} ACTIVE</b><br><small>{tr['ts'].strftime('%H:%M')}</small><div style='font-family:JetBrains Mono; font-size:10px; margin-top:5px;'>⚪ IN: {tr['in']:,.2f}<br>🟢 TP: {tr['tp']:,.2f}<br>🔴 SL: {tr['sl']:,.2f}</div></div>""", unsafe_allow_html=True)
             else: st.markdown(f"<div class='kz-card' style='text-align:center; color:#444; padding:20px;'>⌛ WAITING FOR M5 SIGNAL...</div>", unsafe_allow_html=True)
 
-            # MATRIX
+            # MATRIX (AJOUT DE P07)
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase;'>● MATRIX ROADMAP : RÉEL | BRUT</p>", unsafe_allow_html=True)
             tr_m, tr_g = cap, cap
-            for i in range(1, 7):
+            for i in range(1, 8):  # Changement ici : de 7 à 8 pour inclure P07
                 ret = (tr_m * 0.1) if tr_m > 5000 else 0
                 tr_m, tr_g = (tr_m * 2) - ret, (tr_g * 2)
                 badge = f"<div class='m-badge-blue'>SORTIE: {ret:,.0f}£</div>" if i >= 4 and ret > 0 else "<div class='m-badge-red'>ACCUMULATION</div>"
@@ -186,7 +191,7 @@ def sync_terminal():
             for n in feed.entries[:5]:
                 st.markdown(f"<div style='font-size:9px; border-bottom:1px solid #111; padding:5px 0;'>🕒 {n.published[17:22]} | {n.title[:45]}...</div>", unsafe_allow_html=True)
 
-            # --- INTEL SECTION (FULL TEXT RESTORED) ---
+            # --- INTEL SECTION ---
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase; margin-top:15px;'>● STRATEGY INTEL & DEFINITIONS</p>", unsafe_allow_html=True)
             
             st.markdown("""
