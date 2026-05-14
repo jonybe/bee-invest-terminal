@@ -42,6 +42,7 @@ st.markdown("""
         color: #ff4b4b; border: 1px solid rgba(255, 75, 75, 0.2); width: 110px; text-align: center;
     }
     .m-badge-safe { color: #58a6ff; border-color: #58a6ff; background: rgba(88, 166, 255, 0.1); }
+    .legende { font-size: 9px; color: #666; line-height: 1.4; padding: 10px; background: #080808; border-radius: 4px; border: 1px dashed #222; margin-top: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -63,12 +64,10 @@ def get_market_data():
         dxy = yf.Ticker("DX-Y.NYB").fast_info['last_price']
         yields = yf.Ticker("^TNX").fast_info['last_price'] / 10
         
-        # News Analysis Engine
         feed = feedparser.parse("https://news.google.com/rss/search?q=gold+market+forex&hl=en&gl=US&ceid=US:en")
         news = sorted(feed.entries, key=lambda x: x.published_parsed, reverse=True)[:4]
         text_blob = " ".join([n.title.lower() for n in news])
         
-        # Dynamic Force Calculation
         geo = 32.50 if any(w in text_blob for w in ['war', 'conflict', 'tension', 'iran', 'russia']) else 28.0
         cb = 21.40 if any(w in text_blob for w in ['fed', 'inflation', 'rates', 'hike', 'powell']) else 18.0
         etf = 11.20 if any(w in text_blob for w in ['etf', 'inflow', 'holdings', 'demand']) else 9.0
@@ -86,13 +85,20 @@ if data:
     perte_gbp = cap * risk_pct
     lot = perte_gbp / (sl_dyn * 10)
     
+    # CALCUL DE FORCE NET (BULL SCORE)
     drag = (dxy - 100) + (yields * 5)
     bull_score = min(max((geo + cb + etf) - drag, 10), 100)
-    can_trade = bull_score > 58 and yields < 4.8
+    
+    # LOGIQUE D'AUTORISATION
+    # ACHAT : Bull Score > 58% ET Momentum M15 > 50%
+    # VENTE : Bull Score < 42% ET Momentum M15 < 50%
+    can_buy = bull_score > 58 and m15_p > 50
+    can_sell = bull_score < 42 and m15_p < 50
+    
     p_rest, prog = math.log(1000000 / cap) / math.log(2), (math.log(cap/100) / math.log(1000000/100)) * 100
 
     # Header
-    st.markdown(f"<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V42 FULL INTELLIGENCE | RISK: {perte_gbp:.2f} £</small></div><div class='val-quant'>{gold:,.2f} $</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V43 TACTICAL INTELLIGENCE | RISK: {perte_gbp:.2f} £</small></div><div class='val-quant'>{gold:,.2f} $</div></div>", unsafe_allow_html=True)
     st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
     col_main, col_side = st.columns([2, 1])
@@ -102,7 +108,7 @@ if data:
 
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f"<div class='kz-card' style='text-align:center; border-left:3px solid #00ff88;'><small class='label'>LOT ACTUEL ATR</small><br><span style='font-size:36px; font-weight:900; color:#00ff88;'>{lot:.2f}</span><br><b style='color:{'#00ff88' if can_trade else '#ffb000'};'>{'SIGNAL ACHAT VALIDÉ' if can_trade else 'WAITING'}</b></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='kz-card' style='text-align:center; border-left:3px solid #00ff88;'><small class='label'>LOT ACTUEL ATR</small><br><span style='font-size:36px; font-weight:900; color:#00ff88;'>{lot:.2f}</span><br><b style='color:{'#00ff88' if can_buy else '#ff4b4b' if can_sell else '#ffb000'};'>{'ACHAT VALIDÉ' if can_buy else 'VENTE VALIDÉE' if can_sell else 'ATTENTE CONFLUENCE'}</b></div>", unsafe_allow_html=True)
         with c2:
             st.markdown(f"<div class='kz-card' style='font-size:11px;'><small class='label'>NIVEAUX TECHNIQUES</small><br>🟢 TP : {gold+sl_dyn*2:,.1f}<br>⚪ IN : {gold:,.1f}<br>🔴 SL : {gold-sl_dyn:,.1f}</div>", unsafe_allow_html=True)
 
@@ -113,28 +119,26 @@ if data:
             t_cap_pure *= 2
             retrait = (t_cap_real * 0.1) if t_cap_real > 5000 else 0
             t_cap_real = (t_cap_real * 2) - retrait
-            b_class = "m-badge-safe" if retrait > 0 else ""
-            b_text = f"SORTIE: {retrait:,.0f}£" if retrait > 0 else "FULL REINVEST"
             st.markdown(f"""
             <div class="matrix-row">
                 <div class="m-id">P{i:02}</div>
                 <div class="m-cap-group"><div class="m-cap-pure">BRUT: {t_cap_pure:,.0f} £</div><div class="m-cap-real">{t_cap_real:,.0f} £</div></div>
                 <div class="m-lot">LOT: {(t_cap_real * risk_pct) / (sl_dyn * 10):.2f}</div>
                 <div class="m-time">🚀 {(now+timedelta(days=i*30)).strftime('%m/%Y')}<br>🐢 {(now+timedelta(days=i*39)).strftime('%m/%Y')}</div>
-                <div class="m-badge {b_class}">{b_text}</div>
+                <div class="m-badge {'m-badge-safe' if retrait > 0 else ''}">{f"SORTIE: {retrait:,.0f}£" if retrait > 0 else "FULL REINVEST"}</div>
             </div>""", unsafe_allow_html=True)
 
     with col_side:
-        st.markdown("<p class='label'>● GOLD INSIGHTS & MACRO FORCES</p>", unsafe_allow_html=True)
+        st.markdown("<p class='label'>● GOLD INSIGHTS & BULL SCORE</p>", unsafe_allow_html=True)
         st.markdown(f"""
         <div class='kz-card' style='border-right: 3px solid #ffb000;'>
             <div style='display:flex; justify-content:space-between; margin-bottom:5px;'><span style='color:#666;'>Volatilité (ATR) :</span><span style='color:#fff;'>{vol_atr:.2f} $</span></div>
             <div style='display:flex; justify-content:space-between; margin-bottom:10px;'><span style='color:#666;'>Variation J :</span><span style='color:{'#00ff88' if gold_change > 0 else '#ff4b4b'};'>{gold_change:+.2f}%</span></div>
-            <hr style='border-color:#222; margin: 10px 0;'>
-            <p class='label' style='margin-bottom:8px;'>Force des Fondamentaux</p>
-            <div style='display:flex; justify-content:space-between; margin-bottom:4px;'><span style='color:#aaa;'>🌍 Géopolitique :</span><span style='color:#00ff88;'>+{geo:.1f}</span></div>
-            <div style='display:flex; justify-content:space-between; margin-bottom:4px;'><span style='color:#aaa;'>🏛️ Banques Cent. :</span><span style='color:#00ff88;'>+{cb:.1f}</span></div>
-            <div style='display:flex; justify-content:space-between;'><span style='color:#aaa;'>💰 Flux ETF :</span><span style='color:#00ff88;'>+{etf:.1f}</span></div>
+            <hr style='border-color:#222;'>
+            <div style='display:flex; justify-content:space-between; margin-top:10px;'>
+                <span class='label' style='color:#00ff88;'>BULL SCORE NET :</span><span style='color:#00ff88; font-weight:bold; font-size:14px;'>{bull_score:.1f}%</span>
+            </div>
+            <div class='bar-container' style='height:10px;'><div class='p-bull' style='width:{bull_score}%'></div><div class='p-bear' style='width:{100-bull_score}%'></div></div>
         </div>""", unsafe_allow_html=True)
 
         st.markdown("<p class='label'>● PRESSURE SENSORS</p>", unsafe_allow_html=True)
@@ -143,12 +147,20 @@ if data:
 
         st.metric("DXY INDEX", f"{dxy:.2f}")
         st.metric("REAL YIELDS", f"{yields:.2f}%")
-        
-        st.markdown("<p class='label'>● NEWS STREAM</p>", unsafe_allow_html=True)
-        for n in news[:3]:
-            st.markdown(f"<div style='font-size:10px; margin-bottom:5px; border-bottom:1px solid #111; padding-bottom:3px;'>🕒 {n.published[5:11]} | {n.title[:50]}...</div>", unsafe_allow_html=True)
 
-    st.markdown(f"<div style='background:{'#00ff88' if can_trade and m15_p > 50 else '#ffb000'}; color:black; text-align:center; padding:6px; font-weight:900; font-size:12px; border-radius:4px;'>VERDICT : {'CONFLUENCE TOTALE ✅' if can_trade and m15_p > 50 else 'ATTENTE SIGNAL M15 ⏳'}</div>", unsafe_allow_html=True)
+    # FOOTER VERDICT + LÉGENDE TACTIQUE
+    v_color = '#00ff88' if can_buy else '#ff4b4b' if can_sell else '#ffb000'
+    v_text = 'CONFLUENCE ACHAT ✅' if can_buy else 'CONFLUENCE VENTE 🔴' if can_sell else 'ATTENTE CONFLUENCE ⏳'
+    st.markdown(f"<div style='background:{v_color}; color:black; text-align:center; padding:8px; font-weight:900; font-size:13px; border-radius:4px;'>VERDICT FINAL : {v_text}</div>", unsafe_allow_html=True)
+    
+    st.markdown(f"""
+    <div class="legende">
+        <b>⚖️ LÉGENDE DES SIGNAUX :</b><br>
+        • 🟢 <b>ACHAT (>58%) :</b> La macro (Géo+ETF) et la baisse du DXY/Yields créent une pression haussière dominante. Autorisé si M15 est Vert.<br>
+        • 🔴 <b>VENTE (<42%) :</b> Le Dollar et les Yields écrasent l'Or. La macro est défavorable. Autorisé si M15 est Rouge.<br>
+        • ⏳ <b>NEUTRE (42-58%) :</b> Zone de combat ou manque de news majeures. Risque de "choppiness". Attendre une sortie de zone.
+    </div>
+    """, unsafe_allow_html=True)
 
 import time
 time.sleep(2)
