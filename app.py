@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V102 ANTI-HEDGING FIX)
+# 1. Configuration & Design System (V103 - TIME & LEGEND ADDED)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 if 'trades' not in st.session_state:
@@ -62,7 +62,11 @@ st.markdown("""
 @st.fragment(run_every=3)
 def sync_terminal():
     try:
-        # 1. FETCH
+        # 1. FETCH & TIME
+        # Calcul de l'heure locale Suisse (UTC+2 pour l'heure d'été en mai)
+        local_time = datetime.utcnow() + timedelta(hours=2)
+        time_str = local_time.strftime("%d/%m/%Y | %H:%M:%S")
+
         t = yf.Ticker("GC=F")
         gold = t.fast_info['last_price']
         df_m15 = t.history(period="2d", interval="15m").dropna()
@@ -114,7 +118,7 @@ def sync_terminal():
             st.session_state.last_m5_ts = curr_m5
 
         # --- RENDER ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V102 BARS CLEARED | MATRIX P07 | ANTI-HEDGING</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V103 ELITE | MATRIX P07 | 🕒 {time_str} (CH)</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
@@ -191,7 +195,18 @@ def sync_terminal():
                     <div><small style="color:#444;">USD</small><br><b>{dxy:.1f}</b></div>
                 </div></div>""", unsafe_allow_html=True)
 
+            # BULL SCORE BAR
             st.markdown(f"<div style='display:flex; justify-content:space-between; font-weight:bold; margin-top:10px;'><span style='color:#555;'>BULL SCORE</span><span style='color:{sig_col};'>{sig_label} {bull_score:.1f}%</span></div><div style='background:#1a1a1a; height:6px; border-radius:3px; overflow:hidden;'><div style='background:{sig_col}; width:{bull_score}%; height:100%;'></div></div>", unsafe_allow_html=True)
+            
+            # --- LÉGENDE BULL SCORE ---
+            st.markdown("""
+            <div style='font-size:9px; color:#888; margin-top:8px; line-height:1.5; background:#0a0a0a; padding:8px; border-radius:4px; border:1px solid #151515;'>
+                <b style='color:#aaa;'>LÉGENDE BULL SCORE (0-100%) :</b><br>
+                <span style='color:#00ff88;'><b>> 58% (ACHAT)</b></span> : La pression acheteuse domine. Alignement haussier des flux (Macro + Intraday).<br>
+                <span style='color:#ff4b4b;'><b>< 42% (VENTE)</b></span> : La pression vendeuse prend le contrôle. Rejet institutionnel actif.<br>
+                <span style='color:#ffb000;'><b>42% - 58% (ATTENTE)</b></span> : Marché neutre ou en consolidation. Biais directionnel incertain.
+            </div>
+            """, unsafe_allow_html=True)
             
             # WEEKLY CALENDAR
             st.markdown("<p style='color:#555; font-size:9px; font-weight:bold; text-transform:uppercase; margin-top:15px;'>● WEEKLY ECONOMIC CALENDAR</p>", unsafe_allow_html=True)
