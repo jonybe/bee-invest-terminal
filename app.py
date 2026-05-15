@@ -2,12 +2,10 @@ import streamlit as st
 import requests
 import random
 import math
-import pandas as pd
-import plotly.graph_objects as go
 from datetime import datetime
 
 # 1. Configuration
-st.set_page_config(page_title="KILLZONE | Terminal Final", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="KILLZONE | Terminal TwelveData", layout="wide", initial_sidebar_state="collapsed")
 
 API_KEY = "a640b1ef6a07445695f0fc9c34359160"
 
@@ -17,10 +15,6 @@ def get_price(symbol):
         res = requests.get(url).json()
         return float(res['price'])
     except: return 2355.50
-
-if 'history' not in st.session_state:
-    p = get_price("XAU/USD")
-    st.session_state.history = [p + (i*0.1) for i in range(20)]
 
 st.markdown("""
 <style>
@@ -40,6 +34,7 @@ st.markdown("""
     .status-badge { padding: 2px 6px; border-radius: 2px; font-size: 8px; font-weight: 900; margin-left: auto; border: 1px solid #333; }
     .ok { color: #10b981; background: #10b98111; border-color: #10b981; }
     .wait { color: #ef4444; background: #ef444411; border-color: #ef4444; }
+    iframe { border-radius: 4px; border: 1px solid #222; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -50,9 +45,6 @@ def terminal_engine():
         dxy = get_price("DXY")
         cap = 953.55
         prog = (math.log(cap/100) / math.log(1000000/100)) * 100
-        
-        st.session_state.history.append(gold)
-        st.session_state.history = st.session_state.history[-20:]
         
         poc = round(gold - 0.2, 1)
         vah, val = poc + 5.0, poc - 5.0
@@ -66,21 +58,14 @@ def terminal_engine():
         prices_range = [round(gold + (i * 0.5), 1) for i in range(10, -11, -1)]
         for p in prices_range:
             is_ask = p > gold
-            if (setup_dir == "BULL" and p == round(val,1)) or (setup_dir == "BEAR" and p == round(vah,1)):
-                v = random.randint(2400, 3100)
-            else: v = random.randint(120, 500)
+            v = random.randint(2400, 3100) if ((setup_dir == "BULL" and p == round(val,1)) or (setup_dir == "BEAR" and p == round(vah,1))) else random.randint(120, 500)
             if p == round(gold, 1): v = 0
             if is_ask: t_ask += v
             else: t_bid += v
-            
             p_style = "color:#eab308; font-weight:bold;" if p == round(gold, 1) else ""
-            w = min(100, (v / 3500) * 100)
-            b_type = "ask" if is_ask else "bid"
-            
             dom_html += f'<div class="dom-row"><div class="dom-price" style="{p_style}">{p:.1f}</div>'
             dom_html += f'<div class="dom-bar-container">'
-            if p != round(gold, 1):
-                dom_html += f'<div class="dom-bar-{b_type}" style="width:{w}%;"></div>'
+            if p != round(gold, 1): dom_html += f'<div class="dom-bar-{"ask" if is_ask else "bid"}" style="width:{min(100, (v/3500)*100)}%;"></div>'
             dom_html += f'<div class="dom-vol">{v if v>0 else ""}</div></div></div>'
         dom_html += "</div>"
 
@@ -89,7 +74,7 @@ def terminal_engine():
         prob = (35 if is_on_zone else 5) + (45 if imbalance_ok else 5) + (20 if dxy_ok else 0)
 
         st.markdown(f"""<div class="kz-topbar">
-            <div style="display:flex; align-items:center; gap:15px;"><b style="color:#eab308; font-size:16px;">🔱 BEE-INVEST</b><span style="color:#444;">|</span><span style="letter-spacing:1px; font-weight:800;">KILLZONE V3.1</span></div>
+            <div style="display:flex; align-items:center; gap:15px;"><b style="color:#eab308; font-size:16px;">🔱 BEE-INVEST</b><span style="color:#444;">|</span><span style="letter-spacing:1px; font-weight:800;">KILLZONE V3.2</span></div>
             <div style="text-align:center;"><span style="font-size:8px; color:#71717a;">ROUTE AU MILLION</span><br><b style="color:#10b981; font-size:14px;">{cap:,.2f} £</b><div style="width:120px; height:3px; background:#222; margin-top:2px;"><div style="width:{prog}%; height:100%; background:#10b981;"></div></div></div>
             <div style="display:flex; gap:25px;"><div style="text-align:right;"><small style="color:#71717a;">XAU/USD</small><br><b>${gold:,.2f}</b></div><div style="text-align:right;"><small style="color:#71717a;">DXY Index</small><br><b style="color:{'#10b981' if dxy_ok else '#ef4444'};">{dxy:.2f}</b></div></div>
         </div>""", unsafe_allow_html=True)
@@ -107,13 +92,10 @@ def terminal_engine():
             st.markdown(f"""<div class="kz-panel"><div class="kz-header">LOGIQUE D'ABSORPTION</div><p style="font-size:9px; color:#888; line-height:1.5;"><b>Setup :</b> Traque l'épuisement des ordres au marché vs murs institutionnels.<br><br><b>Confirmation :</b> Ratio > 2.7x sur VAL ou VAH.<br><b>Execution :</b> SL 4 Ticks / TP 8 Ticks.</p></div>""", unsafe_allow_html=True)
 
         with col2:
-            st.markdown("""<div class="kz-panel" style="height:100%;"><div class="kz-header">TRADINGVIEW M15 (LIVE)</div>""", unsafe_allow_html=True)
-            h_data = st.session_state.history
-            fig = go.Figure(data=[go.Candlestick(x=list(range(len(h_data))), open=[x-0.1 for x in h_data], high=[x+0.3 for x in h_data], low=[x-0.3 for x in h_data], close=h_data, increasing_line_color='#10b981', decreasing_line_color='#ef4444', increasing_fillcolor='#10b981', decreasing_fillcolor='#ef4444')])
-            fig.add_hline(y=vah, line_dash="dash", line_color="#ef4444", opacity=0.3)
-            fig.add_hline(y=val, line_dash="dash", line_color="#10b981", opacity=0.3)
-            fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), height=200, template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False, showlegend=False, yaxis=dict(gridcolor='#1a1a1a', side="right"))
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            st.markdown("""<div class="kz-panel" style="height:100%;"><div class="kz-header">TWELVE DATA PRO CHART (M15)</div>""", unsafe_allow_html=True)
+            # WIDGET TWELVE DATA OFFICIEL
+            widget_url = f"https://twelvedata.com/widget/advanced?symbol=XAU/USD&apikey={API_KEY}&interval=15&theme=dark&style=1"
+            st.components.v1.iframe(widget_url, height=220)
             st.markdown("""<div style="margin-top:10px;"><div class="kz-header">GLOBAL INTELLIGENCE</div><div style="border-left:2px solid #eab308; padding-left:10px; margin-bottom:8px;"><b style="color:#eab308; font-size:9px;">BCE :</b> <span style="font-size:9px; color:#aaa;">Impact Euro/Gold attendu sur discours Lagarde.</span></div><div style="border-left:2px solid #eab308; padding-left:10px; margin-bottom:8px;"><b style="color:#eab308; font-size:9px;">ETF :</b> <span style="font-size:9px; color:#aaa;">Accumulation GLD active (+2.4%).</span></div></div>""", unsafe_allow_html=True)
 
         with col3:
