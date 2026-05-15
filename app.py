@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import re
 
-# 1. Configuration & Design System (V101 ZERO SCINTILLEMENT ABSOLU)
+# 1. Configuration & Design System (V102 ANTI-HEDGING FIX)
 st.set_page_config(page_title="BEE-INVEST | TOTAL CONTROL", layout="wide")
 
 if 'trades' not in st.session_state:
@@ -91,7 +91,7 @@ def sync_terminal():
                 if not any(d['name'] == ev_name for d in cal_data):
                     cal_data.append({"name": ev_name, "act": "TBD"})
 
-        # 3. TRADES
+        # 3. TRADES (AVEC VERROU ANTI-HEDGING)
         active_trades = []
         for trade in st.session_state.trades:
             if trade['type'] == "LONG":
@@ -103,14 +103,18 @@ def sync_terminal():
         curr_m5 = df_m5.index[-1]
         if st.session_state.last_m5_ts != curr_m5:
             if len(st.session_state.trades) < 2:
-                if sig_label == "ACHAT" and bull_score > 58:
+                # Vérification directionnelle : Empêche un Achat si un Short est en cours, et inversement
+                has_long = any(t['type'] == 'LONG' for t in st.session_state.trades)
+                has_short = any(t['type'] == 'SHORT' for t in st.session_state.trades)
+                
+                if sig_label == "ACHAT" and bull_score > 58 and not has_short:
                     st.session_state.trades.append({'type': "LONG", 'in': gold, 'tp': gold+24, 'sl': gold-12, 'ts': curr_m5})
-                elif sig_label == "VENTE" and bull_score < 42:
+                elif sig_label == "VENTE" and bull_score < 42 and not has_long:
                     st.session_state.trades.append({'type': "SHORT", 'in': gold, 'tp': gold-24, 'sl': gold+12, 'ts': curr_m5})
             st.session_state.last_m5_ts = curr_m5
 
         # --- RENDER ---
-        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V101 BARS CLEARED | MATRIX P07</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style='display:flex; justify-content:space-between;'><div><h3 style='color:#ffb000; margin:0;'>🔱 BEE-INVEST UNIT</h3><small style='color:#444;'>V102 BARS CLEARED | MATRIX P07 | ANTI-HEDGING</small></div><div style='font-family:JetBrains Mono; font-size:18px; font-weight:bold; color:#00ff88;'>{gold:,.2f} $ <span style='padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-left: 10px; background:{sig_col}22; color:{sig_col}; border:1px solid {sig_col};'>{sig_label}</span></div></div>""", unsafe_allow_html=True)
         st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
 
         c1, c2 = st.columns([2, 1])
