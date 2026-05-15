@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 # 1. Configuration & Design System
 st.set_page_config(page_title="KILLZONE | Terminal Stable", layout="wide", initial_sidebar_state="collapsed")
 
+# TA CLÉ API
 API_KEY = "a640b1ef6a07445695f0fc9c34359160" 
 
 def get_realtime_data(symbol):
@@ -17,11 +18,15 @@ def get_realtime_data(symbol):
         response = requests.get(url).json()
         return float(response['price'])
     except:
-        return 2352.40 
+        return 2352.40 # Fallback si l'API est occupée
 
 st.markdown("""
 <style>
     * { --st-fragment-fade-opacity: 1 !important; --st-fragment-fade-duration: 0ms !important; }
+    div[data-testid="stAppViewBlockContainer"], div[data-testid="stVerticalBlock"],
+    div[data-fragment-component-id], [data-testid="stFragment"], [data-testid="stFragment"] > div {
+        opacity: 1 !important; transition: none !important; animation: none !important; filter: blur(0px) !important;
+    }
     html, body, [data-testid="stAppViewContainer"] { background-color: #0b0b0b !important; color: #a1a1aa; font-family: 'Inter', sans-serif; font-size: 11px; }
     .block-container { padding-top: 1rem !important; max-width: 1600px; }
     .kz-panel { background: #111111; border: 1px solid #222222; border-radius: 6px; padding: 14px; margin-bottom: 10px; }
@@ -47,21 +52,22 @@ st.markdown("""
 @st.fragment(run_every=8)
 def order_flow_engine():
     try:
-        # A. CORE DATA
+        # A. INITIALISATION DES VARIABLES (Anti-bug)
+        setup_triggered = False
+        setup_type = "NEUTRAL"
+        dxy_is_safe = False
+        
+        # B. CORE DATA
         gold = get_realtime_data("XAU/USD")
         dxy = get_realtime_data("DXY")
         cap = 953.55
         prog = (math.log(cap/100) / math.log(1000000/100)) * 100
         
-        # B. CALCULS ZONES
+        # C. CALCULS ZONES
         poc = round(gold - 0.5, 1)
         vah, val = poc + 5.5, poc - 5.5
-        
-        # C. INITIALISATION VARIABLES (Correction du Bug)
-        setup_triggered = False
-        setup_type = "NEUTRAL"
         is_on_zone = (gold <= val + 0.8) or (gold >= vah - 0.8)
-        dxy_safe = dxy < 106.8
+        dxy_is_safe = True if dxy < 106.8 else False
 
         # D. SIMULATION CARNET (DOM)
         dom_data = []
@@ -73,7 +79,6 @@ def order_flow_engine():
         for i in range(10, -11, -1):
             p = round(gold + (i * 0.5), 1)
             is_ask = p > gold
-            # Simulation d'un mur si setup
             if (current_setup == "BULL_ABS" and p == round(val, 1)) or (current_setup == "BEAR_ABS" and p == round(vah, 1)):
                 vol = random.randint(2300, 3200)
             else:
@@ -86,23 +91,22 @@ def order_flow_engine():
         ratio = max(t_bid, t_ask) / max(1, min(t_bid, t_ask))
         imbalance_ok = ratio >= 2.7
         
-        # Validation finale du setup
-        if imbalance_ok and is_on_zone and dxy_safe:
+        if imbalance_ok and is_on_zone and dxy_is_safe:
             setup_triggered = True
             setup_type = current_setup
 
-        prob = (35 if is_on_zone else 5) + (45 if imbalance_ok else 5) + (20 if dxy_safe else 0)
+        prob = (35 if is_on_zone else 5) + (45 if imbalance_ok else 5) + (20 if dxy_is_safe else 0)
 
         # --- RENDU TOPBAR ---
         st.markdown(f"""<div class="kz-topbar">
             <div style="display:flex; align-items:center; gap:12px;">
                 <div style="background:#eab308; color:#000; font-weight:900; padding:5px 8px; border-radius:3px;">K</div>
-                <div style="color:#e4e4e7; font-weight:800; letter-spacing:1px;">KILLZONE V2.8 <span style="color:#71717a;">| STABLE</span></div>
+                <div style="color:#e4e4e7; font-weight:800; letter-spacing:1px;">KILLZONE V2.9 <span style="color:#71717a;">| FINAL STABLE</span></div>
             </div>
             <div style="text-align:center;"><span style="font-size:8px; color:#71717a;">ROUTE AU MILLION</span><br><span style="color:#00ff88; font-weight:bold;">{cap:,.2f} £</span><div style="background:#222; height:3px; width:100px; margin-top:2px;"><div style="background:#00ff88; height:100%; width:{prog}%;"></div></div></div>
             <div style="display:flex; gap:20px;">
                 <div style="text-align:right;"><span style="font-size:8px; color:#71717a;">GOLD SPOT</span><br><span style="color:#e4e4e7; font-weight:bold;">${gold:,.2f}</span></div>
-                <div style="text-align:right;"><span style="font-size:8px; color:#71717a;">DXY</span><br><span style="color:{'#10b981' if dxy_is_safe else '#ef4444'}; font-weight:bold;">{dxy:.2f}</span></div>
+                <div style="text-align:right;"><span style="font-size:8px; color:#71717a;">DXY Index</span><br><span style="color:{'#10b981' if dxy_is_safe else '#ef4444'}; font-weight:bold;">{dxy:.2f}</span></div>
             </div>
         </div>""", unsafe_allow_html=True)
 
@@ -111,29 +115,28 @@ def order_flow_engine():
         with c1:
             st.markdown(f"""<div class="kz-panel"><div class="kz-header">MARKET PROFILE</div>
                 <div style="font-family:'JetBrains Mono'; font-size:10px;">
-                    <div style="display:flex; justify-content:space-between; color:#ef4444;"><span>VAH</span><b>{vah:.1f}</b></div>
-                    <div style="display:flex; justify-content:space-between; color:#eab308; margin:5px 0;"><span>POC</span><b>{poc:.1f}</b></div>
-                    <div style="display:flex; justify-content:space-between; color:#10b981;"><span>VAL</span><b>{val:.1f}</b></div>
+                    <div style="display:flex; justify-content:space-between; color:#ef4444;"><span>VAH (RES)</span><b>{vah:.1f}</b></div>
+                    <div style="display:flex; justify-content:space-between; color:#eab308; margin:5px 0;"><span>POC (PIVOT)</span><b>{poc:.1f}</b></div>
+                    <div style="display:flex; justify-content:space-between; color:#10b981;"><span>VAL (SUPP)</span><b>{val:.1f}</b></div>
                 </div>
                 <div style="text-align:center; padding:10px; background:#18181b; border-radius:4px; margin-top:10px; border:1px solid #27272a;">
                     <div style="font-size:8px; color:#71717a;">PROBABILITÉ</div>
                     <div style="font-size:20px; font-weight:900; color:{'#10b981' if prob > 70 else '#ef4444'};">{prob}%</div>
                 </div></div>""", unsafe_allow_html=True)
 
-            st.markdown(f"""<div class="kz-panel"><div class="kz-header">LOGIQUE : ABSORPTION</div>
+            st.markdown(f"""<div class="kz-panel"><div class="kz-header">STRATEGY: ABSORPTION</div>
                 <div style="font-size:9px; color:#888; line-height:1.4;">
                 Mur institutionnel requis: <b>2.7x</b>. <br>
                 <span style="color:#10b981;">● LOTS: {round((cap*0.01)/150, 2)}</span> | <span style="color:#eab308;">RISK: 1%</span>
-                <br><br>Traque l'épuisement des vendeurs agressifs sur le support institutionnel (VAL).
+                <br><br>Traque l'épuisement des vendeurs agressifs (Mains Faibles) sur les murs passifs (Mains Fortes).
                 </div></div>""", unsafe_allow_html=True)
 
         with c2:
             st.markdown("""<div class="kz-panel" style="height:100%;"><div class="kz-header">M15 CANDLESTICK</div>""", unsafe_allow_html=True)
-            # Génération d'un historique de bougies cohérent avec le prix actuel
             hist_prices = [gold + (random.uniform(-0.5, 0.5) * i) for i in range(15, 0, -1)]
             opens = hist_prices
             closes = [o + random.uniform(-0.8, 0.8) for o in opens]
-            closes[-1] = gold # La dernière bougie finit sur le prix TD
+            closes[-1] = gold
             
             fig = go.Figure(data=[go.Candlestick(x=list(range(15)), open=opens, high=[max(o,c)+0.3 for o,c in zip(opens,closes)], low=[min(o,c)-0.3 for o,c in zip(opens,closes)], close=closes, increasing_line_color='#10b981', decreasing_line_color='#ef4444')])
             fig.add_hline(y=vah, line_color="#ef4444", line_width=1, opacity=0.2)
@@ -144,7 +147,7 @@ def order_flow_engine():
             st.markdown("""<div style="padding-top:10px;"><div class="kz-header">GLOBAL INTELLIGENCE</div>
                 <div class="news-item"><span class="news-tag">BCE</span>Taux maintenus, pression sur l'euro.</div>
                 <div class="news-item"><span class="news-tag">ETF</span>Inflows massifs sur GLD (+2.4%).</div>
-                <div class="news-item"><span class="news-tag">GEO</span>Prime de risque Or +15$.</div>
+                <div class="news-item"><span class="news-tag">GEO</span>Tensions régionales: Prime Or +15$.</div>
                 </div></div>""", unsafe_allow_html=True)
 
         with c3:
@@ -169,7 +172,7 @@ def order_flow_engine():
                     <span style="font-size:9px;">2. IMBALANCE</span><span class="roadmap-badge {'status-ok' if imbalance_ok else 'status-wait'}">{'OK' if imbalance_ok else 'WAIT'}</span>
                 </div>
                 <div style="display:flex; align-items:center; background:#0c0c0c; padding:8px; border-radius:4px; border:1px solid #222;">
-                    <span style="font-size:9px;">3. DXY FILTER</span><span class="roadmap-badge {'status-ok' if dxy_safe else 'status-wait'}">{'OK' if dxy_safe else 'WAIT'}</span>
+                    <span style="font-size:9px;">3. DXY FILTER</span><span class="roadmap-badge {'status-ok' if dxy_is_safe else 'status-wait'}">{'OK' if dxy_is_safe else 'WAIT'}</span>
                 </div>
                 <div style="display:flex; align-items:center; background:#0c0c0c; padding:8px; border-radius:4px; border:1px solid #222;">
                     <span style="font-size:9px;">4. EXECUTION</span><span class="roadmap-badge {'status-ok' if prob > 75 else 'status-wait'}">{'GO' if prob > 75 else 'NO'}</span>
